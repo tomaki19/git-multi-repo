@@ -1,0 +1,35 @@
+#!/usr/bin/env python3
+import os
+import argparse
+import json
+import tomllib 
+
+parser = argparse.ArgumentParser(description = 'Forward git commands to multiple repositories')
+parser.add_argument('-f', '--file', default = '.git-multi-repos', help = 'json file definition of repositories')
+parser.add_argument('other', nargs='?', help='additional arguments passed to git')
+args, unknown_args = parser.parse_known_args()
+
+repos = {}
+
+if args.file and os.path.isfile(args.file):
+    with open(args.file) as json_file:
+        json_content = json.load(json_file)
+        if isinstance(json_content, dict):
+           repos = json_content
+else:
+    for dir in os.listdir():
+        git_config_file = os.path.join(dir, '.git', 'config')
+        if os.path.isfile(git_config_file):
+            config = tomllib.loads(git_config_file)
+            repos[dir] = config['remote "origin"']['url']
+
+if args.other:
+    for dir in repos:
+        if args.other == 'clone':
+            command = f'git clone {repos[dir]} {dir} {' '.join(unknown_args)}'
+        else:
+            command = f'git -C {dir} {args.other} {' '.join(unknown_args)}'
+        print(command)
+        os.system(command)
+else:
+    parser.print_help()
