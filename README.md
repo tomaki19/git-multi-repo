@@ -1,14 +1,6 @@
 # git-multi-repo
 Git plugin to control multiple git repositories in a directory.
 
-# Install
-Copy `git-multi-repo` to a directory included in your system PATH and make it executable.
-
-# Help
-Use the help function for more information:
-
-    $> git multi-repo -h
-
 # Usage
 By default `git-multi-repo` iterates over all git repositories in the working directory and executes the specified git command:
 
@@ -30,3 +22,14 @@ With the `git multi-repo --file <file>` parameter a other repo dictionary file c
 
 ## Omitting Repositories
 With the `git multi-repo --omit <repository-list>` parameter a list of repsitories can be omitted.<br>The `<repository-list>` needs to be comma separated (e.g. repo0,repo1).
+
+# Install
+Copy `git-multi-repo` to a directory included in your system PATH and make it executable.
+
+# Help
+Use the help function for more information:
+
+    $> git multi-repo -h
+
+# License
+This software is available under the MIT license.
