@@ -1,5 +1,5 @@
 # git-multi-repo
-Git plugin to control multiple git repositories in a directory.
+`git-multi-repo` is a git plugin written in python for issuing commands to multiple git repositories in a directory.
 
 # Usage
 By default `git-multi-repo` iterates over all git repositories in the working directory and executes the specified git command:
