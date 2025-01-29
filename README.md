@@ -23,6 +23,9 @@ With the `git multi-repo --file <file>` parameter a other repo dictionary file c
 ## Omitting Repositories
 With the `git multi-repo --omit <repository-list>` parameter a list of repsitories can be omitted.<br>The `<repository-list>` needs to be comma separated (e.g. repo0,repo1).
 
+## Clone Repositories
+The git clone command is captured by `git-multi-repo` and used to clone all repositories specified in the repo dictionary file (`.git-multi-repo`).
+
 # Install
 Copy `git-multi-repo` to a directory included in your system PATH and make it executable.
 
