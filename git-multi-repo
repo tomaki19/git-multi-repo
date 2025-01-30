@@ -22,21 +22,25 @@
 # SOFTWARE.
 
 import os
+import codecs
 import argparse
+import sys
 import json
 import re
 
 def list_of_strings(arg):
     return arg.split(",")
 
+def unescaped_str(arg_str):
+    return codecs.decode(str(arg_str), 'unicode_escape')
+
 parser = argparse.ArgumentParser(description = "Forward git commands to multiple repositories")
-parser.set_defaults(update=False)
 parser.add_argument("--file", default = ".git-multi-repos", help = "json file definition of repositories")
 parser.add_argument("--update", action="store_true", help = "update the json file definition of repositories from local folders")
 parser.add_argument("--omit", type=list_of_strings, default = [], help = "omit git command for certain local repository folders")
-parser.add_argument("other", nargs="?", default = [], help="additional arguments passed to git")
+parser.add_argument("other", nargs="?", type=unescaped_str, default = [], help="additional arguments passed to git")
 args, unknown_args = parser.parse_known_args()
-
+        
 repos = {}
 
 if args.file and os.path.isfile(args.file):
@@ -73,16 +77,17 @@ if args.update:
         print(f"An error occurred: {e}")    
 
 if args.other:
+    escapeArgs = [(lambda arg: f"\"{str(arg)}\"" if ' ' in arg else arg)(i) for i in unknown_args]
     for dir in repos:
         if dir in args.omit:
             print(f"omitting {dir}")
         else:
             if args.other == "clone":
                 if repos[dir]:
-                    command = f"git clone {repos[dir]} {dir} {' '.join(unknown_args)}"
+                    command = f"git clone {repos[dir]} {dir} {' '.join(escapeArgs)}"
                 else:
                     print(f"git url for repo {dir} missing!")
             else:
-                command = f"git -C {dir} {args.other} {' '.join(unknown_args)}"
+                command = f"git -C {dir} {args.other} {' '.join(escapeArgs)}"
             print(command)
             os.system(command)
