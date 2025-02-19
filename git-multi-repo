@@ -36,21 +36,24 @@ if args.file and os.path.isfile(args.file):
     except Exception as e:
         print(f"An error occurred: {e}")    
 else:
-    for dir in os.listdir():
-        git_config_file = os.path.join(dir, ".git", "config")
+    for repo in os.listdir():
+        git_config_file = os.path.join(repo, ".git", "config")
         if os.path.isfile(git_config_file):
-            repos[dir] = None
+            repos[repo] = None
 
 if args.update:
     git_url_pattern = re.compile(r"^.*url\s?=\s?(.+)$")
-    for dir in repos:
+    for repo in repos:
         try:
-            git_config_file = os.path.join(dir, ".git", "config")
+            git_config_file = os.path.join(repo, ".git", "config")
             if os.path.isfile(git_config_file):
                 for i, line in enumerate(open(git_config_file, "r")):
                     match = re.search(git_url_pattern, line)
                     if match:
-                        repos[dir] = match.group(1)
+                        if repo in args.omit:
+                            print(f"omitting {repo}")                        
+                        else:
+                            repos[repo] = match.group(1)
                         break
         except Exception as e:
             print(f"An error occurred: {e}")    
@@ -62,16 +65,16 @@ if args.update:
 
 if args.other:
     escapeArgs = [(lambda arg: f"\"{str(arg)}\"" if ' ' in arg else arg)(i) for i in unknown_args]
-    for dir in repos:
-        if dir in args.omit:
-            print(f"omitting {dir}")
+    for repo in repos:
+        if repo in args.omit:
+            print(f"omitting {repo}")
         else:
             if args.other == "clone":
-                if repos[dir]:
-                    command = f"git clone {repos[dir]} {dir} {' '.join(escapeArgs)}"
+                if repos[repo]:
+                    command = f"git clone {repos[repo]} {repo} {' '.join(escapeArgs)}"
                 else:
-                    print(f"git url for repo {dir} missing!")
+                    print(f"git url for repo {repo} missing!")
             else:
-                command = f"git -C {dir} {args.other} {' '.join(escapeArgs)}"
+                command = f"git -C {repo} {args.other} {' '.join(escapeArgs)}"
             print(command)
             os.system(command)
