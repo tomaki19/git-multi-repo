@@ -19,32 +19,27 @@ def unescaped_str(arg_str):
     return codecs.decode(str(arg_str), 'unicode_escape')
 
 parser = argparse.ArgumentParser(description = "Forward git commands to multiple repositories")
-parser.add_argument("--file", default = ".git-multi-repos", help = "json file definition of repositories")
-parser.add_argument("--update", action="store_true", help = "update the json file definition of repositories from local folders")
+parser.add_argument("--sync", action="store_true", help = "synchronize the json repo definition file with local repository folders")
+parser.add_argument("--check", action="store_true", help = "check the json repo definition file against local repository folders")
 parser.add_argument("--omit", type=list_of_strings, default = [], help = "omit git command for certain local repository folders")
 parser.add_argument("other", nargs="?", type=unescaped_str, default = [], help="additional arguments passed to git")
 args, unknown_args = parser.parse_known_args()
-        
-repos = {}
 
-if args.file and os.path.isfile(args.file):
-    try:
-        with open(args.file, "r") as json_file:
-            json_content = json.load(json_file)
+json_file = ".git-multi-repos"
+repos = {}
+try:
+    if os.path.isfile(json_file):
+        with open(json_file, "r") as json_content:
+            json_content = json.load(json_content)
             if isinstance(json_content, dict):
                 repos = json_content
-    except Exception as e:
-        print(f"An error occurred: {e}")    
-else:
-    for repo in os.listdir():
-        git_config_file = os.path.join(repo, ".git", "config")
-        if os.path.isfile(git_config_file):
-            repos[repo] = None
+except Exception as e:
+    print(f"An error occurred during load: {e}")    
 
-if args.update:
+if args.sync:
     git_url_pattern = re.compile(r"^.*url\s?=\s?(.+)$")
-    for repo in repos:
-        try:
+    try:
+        for repo in os.listdir():
             git_config_file = os.path.join(repo, ".git", "config")
             if os.path.isfile(git_config_file):
                 for i, line in enumerate(open(git_config_file, "r")):
@@ -54,14 +49,25 @@ if args.update:
                             print(f"omitting {repo}")                        
                         else:
                             repos[repo] = match.group(1)
+                            print(f"adding {repo}")
                         break
-        except Exception as e:
-            print(f"An error occurred: {e}")    
-    try:
-        with open(args.file, "w") as json_file:
-            json.dump(repos, json_file, indent=2)
+        with open(json_file, "w") as json_content:
+            repos = {key: val for key, val in sorted(repos.items(), key = lambda ele: ele[1])}
+            json.dump(repos, json_content, indent=2)
     except Exception as e:
-        print(f"An error occurred: {e}")    
+        print(f"An error occurred during sync: {e}")    
+
+if args.check:
+    try:
+        for repo in os.listdir():
+            git_config_file = os.path.join(repo, ".git", "config")
+            if os.path.isfile(git_config_file):
+                if repo in args.omit:
+                    print(f"omitting {repo}")
+                elif not repo in repos:
+                    print(f"WARNING: {repo} not in {json_file}!")
+    except Exception as e:
+        print(f"An error occurred during check: {e}")    
 
 if args.other:
     escapeArgs = [(lambda arg: f"\"{str(arg)}\"" if ' ' in arg else arg)(i) for i in unknown_args]

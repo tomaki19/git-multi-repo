@@ -7,7 +7,7 @@ By default `git-multi-repo` iterates over all git repositories in the working di
     $> git multi-repo fetch
 
 ## Repository Dictionary File
-A repo dictionary file (`.git-multi-repo`) can be created in the working directory with a list of valid repositories.
+A repo dictionary file (`.git-multi-repo`) can be created or updated with the `git multi-repo --sync` option in a working directory with valid repositories.
 
 The dictionary file has the following example content:
 
@@ -16,12 +16,11 @@ The dictionary file has the following example content:
       "dir-1": "https://my-git-repo-1"
     }
 
-The repo dictionary file can also created or updated automatically with the `git multi-repo --update` parameter.
-
-With the `git multi-repo --file <file>` parameter a other repo dictionary file can be specified for issued command.
+## Checking Repositories
+With the `git multi-repo --check` option the repo dictionary file can be checked against the local repositories.<br>Missing repositories are reported as warnings.
 
 ## Omitting Repositories
-With the `git multi-repo --omit <repository-list>` parameter a list of repsitories can be omitted.<br>The `<repository-list>` needs to be comma separated (e.g. repo0,repo1).
+With the `git multi-repo --omit <repository-list>` option a list of repositories can be omitted.<br>The `<repository-list>` needs to be comma separated (e.g. repo0,repo1).
 
 ## Clone Repositories
 The git clone command is captured by `git-multi-repo` and used to clone all repositories specified in the repo dictionary file (`.git-multi-repo`).
@@ -32,7 +31,7 @@ Copy `git-multi-repo` to a directory included in your system PATH and make it ex
 # Help
 Use the help function for more information:
 
-    $> git multi-repo -h
+    $> git multi-repo -h/--help
 
 # License
 This software is available under the MIT license.
