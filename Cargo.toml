@@ -2,6 +2,7 @@
 name = "git-multi-repo"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.88"
 license = "MIT"
 description = "Apply git commands and tasks to multiple git repositories"
 

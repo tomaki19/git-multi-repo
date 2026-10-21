@@ -19,6 +19,9 @@ used, in file order. If the file exists but is invalid, nothing runs.
 
 Options must come before the git command; everything after it is passed to git.
 
+Note: git intercepts `git multi-repo --help` (it looks for a man page). Use
+`git multi-repo -h` or `git-multi-repo --help` instead.
+
 All regular expressions must match the **whole** directory name:
 `--omit test` omits `test` but not `my-test-repo` (use `.*test.*` for that).
 
@@ -38,6 +41,10 @@ commands cannot read from the terminal.
     url = "git@github.com:me/my-lib.git"
     branch = "main"
     commit = "3d193e9c0a5b..."   # only after --pin
+
+Repository names must be plain directory names (no path separators, `.` or
+`..`, no leading `-`). Review a `.git-multi-repo` file from someone else
+before running `clone` or `--tasks` with it.
 
 - `--persist [<regex>]` writes the file with `url` and `branch` of all (or
   matching) repositories. The file is **overwritten**; existing pins are dropped.
@@ -74,6 +81,15 @@ depend on it are skipped for that repository; independent tasks still run.
 Variables: `%name%` (directory name), `%url%`, `%branch%`, `%commit%`. Values
 come from the `.git-multi-repo` entry when present, otherwise from the
 repository itself (`origin` url, current branch, `HEAD`).
+
+**Security:** variable values are inserted into the shell command literally,
+without escaping. A `.git-multi-repo` file or repository state from someone
+else can therefore inject shell code (for example through a branch name).
+Only use variables with files and repositories you trust; quoting such as
+`'%branch%'` reduces but does not remove the risk.
+
+Windows (`cmd /C`) is supported in principle but untested; commands containing
+`"` may not be passed correctly to cmd.exe.
 
 ## Exit codes
 
