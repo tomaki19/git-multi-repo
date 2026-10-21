@@ -106,6 +106,15 @@ Windows (`cmd /C`) is supported in principle but untested; commands containing
 This installs `git-multi-repo` into `~/.cargo/bin`; with that directory on
 your `PATH`, git finds it as `git multi-repo`.
 
+## Packaging
+
+    ./deploy.sh
+
+Checks formatting, lints and tests, builds a release binary and writes
+`dist/git-multi-repo-<version>-<target>.tar.gz` (binary, README, LICENSE) for
+the host platform, plus a `.sha256` file that can be verified with
+`sha256sum -c`. The working tree must be clean.
+
 ## License
 
 This software is available under the MIT license.
