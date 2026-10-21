@@ -5,10 +5,10 @@
 //! repositories found in the sub-directories of the working directory,
 //! optionally restricted and pinned by a `.git-multi-repo` file.
 
+pub mod actions;
 pub mod cli;
 pub mod config;
 pub mod git;
-pub mod select;
 pub mod runner;
-
+pub mod select;
 pub mod tasks;
