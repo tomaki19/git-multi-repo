@@ -13,7 +13,8 @@ use anyhow::{Context, Result, bail};
 use regex::Regex;
 
 use crate::cli::{Action, Cli};
-use crate::config::Config;
+use crate::config::{Config, Entry, FILE_NAME};
+use crate::git;
 use crate::runner::{self, Job, Step};
 use crate::select::{self, Repo};
 
@@ -24,11 +25,11 @@ pub fn run(cli: &Cli, root: &Path) -> Result<bool> {
     match cli.action() {
         Action::Git(args) => git_command(root, &args, omit, parallelism),
         Action::Clone(args) => clone(root, &args, omit, parallelism),
-        Action::Tasks(_)
-        | Action::Persist(_)
-        | Action::Pin(_)
-        | Action::Remove(_)
-        | Action::Unpin(_) => bail!("this action is not available yet"),
+        Action::Persist(filter) => write_config(root, filter.as_deref(), omit, false),
+        Action::Pin(filter) => write_config(root, filter.as_deref(), omit, true),
+        Action::Remove(filter) => remove(root, filter.as_deref()),
+        Action::Unpin(filter) => unpin(root, filter.as_deref()),
+        Action::Tasks(_) => bail!("this action is not available yet"),
     }
 }
 
@@ -117,4 +118,90 @@ fn clone_job(root: &Path, repo: Repo, args: &[String]) -> Job {
         });
     }
     Job { name: repo.name, steps, skip: None }
+}
+
+fn compile(filter: Option<&str>) -> Result<Option<Regex>> {
+    filter.map(select::full_match).transpose()
+}
+
+fn matches(filter: Option<&Regex>, name: &str) -> bool {
+    filter.is_none_or(|re| re.is_match(name))
+}
+
+/// `--persist` / `--pin`: rebuild the file from the live sub-directories.
+/// The file is overwritten, so entries not matched this time disappear.
+fn write_config(root: &Path, filter: Option<&str>, omit: Option<&Regex>, pin: bool) -> Result<bool> {
+    let filter = compile(filter)?;
+    let previous = Config::load(root)?;
+    let mut config = Config::default();
+    for name in select::scan(root)? {
+        if !matches(filter.as_ref(), &name) || omit.is_some_and(|re| re.is_match(&name)) {
+            continue;
+        }
+        let dir = root.join(&name);
+        let Some(url) = git::remote_url(&dir) else {
+            eprintln!("warning: skipping '{name}': no remote configured");
+            continue;
+        };
+        let branch = git::current_branch(&dir).or_else(|| {
+            previous.as_ref().and_then(|c| c.get(&name)).and_then(|e| e.branch.clone())
+        });
+        let commit = if pin {
+            let Some(commit) = git::head_commit(&dir) else {
+                eprintln!("warning: skipping '{name}': no commit to pin");
+                continue;
+            };
+            Some(commit)
+        } else {
+            None
+        };
+        println!("{} {name}", if pin { "pinning" } else { "persisting" });
+        config.entries.push((name, Entry { url, branch, commit }));
+    }
+    if config.entries.is_empty() {
+        bail!("no repositories matched; {FILE_NAME} left unchanged");
+    }
+    config.save(root)?;
+    println!("wrote {} entries to {FILE_NAME}", config.entries.len());
+    Ok(true)
+}
+
+fn load_existing(root: &Path) -> Result<Config> {
+    match Config::load(root)? {
+        Some(config) => Ok(config),
+        None => bail!("no {FILE_NAME} file in {}", root.display()),
+    }
+}
+
+/// `--remove`: drop matching entries; an empty result deletes the file.
+fn remove(root: &Path, filter: Option<&str>) -> Result<bool> {
+    let filter = compile(filter)?;
+    let mut config = load_existing(root)?;
+    config.entries.retain(|(name, _)| {
+        let matched = matches(filter.as_ref(), name);
+        if matched {
+            println!("removing {name}");
+        }
+        !matched
+    });
+    if config.entries.is_empty() {
+        Config::delete(root)?;
+        println!("no entries left; deleted {FILE_NAME}");
+    } else {
+        config.save(root)?;
+    }
+    Ok(true)
+}
+
+/// `--unpin`: drop the commit of matching entries.
+fn unpin(root: &Path, filter: Option<&str>) -> Result<bool> {
+    let filter = compile(filter)?;
+    let mut config = load_existing(root)?;
+    for (name, entry) in &mut config.entries {
+        if matches(filter.as_ref(), name) && entry.commit.take().is_some() {
+            println!("unpinning {name}");
+        }
+    }
+    config.save(root)?;
+    Ok(true)
 }
