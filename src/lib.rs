@@ -6,3 +6,4 @@
 //! optionally restricted and pinned by a `.git-multi-repo` file.
 
 pub mod cli;
+pub mod config;
