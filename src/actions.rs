@@ -6,7 +6,7 @@
 //! and `Err` for usage or configuration errors (which abort before anything
 //! runs).
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use anyhow::{Context, Result, bail};
@@ -17,6 +17,7 @@ use crate::config::{Config, Entry, FILE_NAME};
 use crate::git;
 use crate::runner::{self, Job, Step};
 use crate::select::{self, Repo};
+use crate::tasks::{self, Task, Vars};
 
 pub fn run(cli: &Cli, root: &Path) -> Result<bool> {
     let omit = cli.omit.as_deref().map(select::full_match).transpose()?;
@@ -29,7 +30,7 @@ pub fn run(cli: &Cli, root: &Path) -> Result<bool> {
         Action::Pin(filter) => write_config(root, filter.as_deref(), omit, true),
         Action::Remove(filter) => remove(root, filter.as_deref()),
         Action::Unpin(filter) => unpin(root, filter.as_deref()),
-        Action::Tasks(_) => bail!("this action is not available yet"),
+        Action::Tasks(path) => run_tasks(root, &path, omit, parallelism),
     }
 }
 
@@ -204,4 +205,67 @@ fn unpin(root: &Path, filter: Option<&str>) -> Result<bool> {
     }
     config.save(root)?;
     Ok(true)
+}
+
+fn run_tasks(
+    root: &Path,
+    path: &Path,
+    omit: Option<&Regex>,
+    parallelism: Option<usize>,
+) -> Result<bool> {
+    let tasks = tasks::load(path)?;
+    let config = Config::load(root)?;
+    let repos = select::select(root, config.as_ref(), omit, true)?;
+    let jobs = repos.into_iter().map(|repo| task_job(root, repo, &tasks)).collect();
+    Ok(execute(jobs, parallelism, true))
+}
+
+/// Builds one job per repository: every task becomes a shell step with its
+/// variables substituted. `tasks` is already in execution order, so a
+/// dependency always refers to an earlier step.
+fn task_job(root: &Path, repo: Repo, tasks: &[Task]) -> Job {
+    let dir: PathBuf = root.join(&repo.name);
+    let entry = repo.entry.unwrap_or_default();
+    let vars = Vars {
+        name: repo.name.clone(),
+        url: Some(entry.url).filter(|url| !url.is_empty()).or_else(|| git::remote_url(&dir)),
+        branch: entry.branch.or_else(|| git::current_branch(&dir)),
+        commit: entry.commit.or_else(|| git::head_commit(&dir)),
+    };
+    let mut warned = Vec::new();
+    let steps = tasks
+        .iter()
+        .map(|task| {
+            let (command, missing) = tasks::substitute(&task.command, &vars);
+            for variable in missing {
+                if !warned.contains(&variable) {
+                    eprintln!(
+                        "warning: {}: %{variable}% has no value, using an empty string",
+                        repo.name
+                    );
+                    warned.push(variable);
+                }
+            }
+            Step {
+                label: task.task.clone(),
+                argv: shell(&command),
+                cwd: dir.clone(),
+                depends_on: task.depends_on.as_ref().map(|dependency| {
+                    tasks
+                        .iter()
+                        .position(|t| &t.task == dependency)
+                        .expect("dependencies are validated by tasks::parse")
+                }),
+            }
+        })
+        .collect();
+    Job { name: repo.name, steps, skip: None }
+}
+
+fn shell(command: &str) -> Vec<String> {
+    if cfg!(windows) {
+        vec!["cmd".into(), "/C".into(), command.into()]
+    } else {
+        vec!["sh".into(), "-c".into(), command.into()]
+    }
 }
