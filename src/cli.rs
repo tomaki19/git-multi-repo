@@ -54,7 +54,11 @@ pub struct Cli {
     pub tasks: Option<PathBuf>,
 
     /// Git command and arguments to run in every repository
-    #[arg(value_name = "GIT_COMMAND", trailing_var_arg = true, allow_hyphen_values = true)]
+    #[arg(
+        value_name = "GIT_COMMAND",
+        trailing_var_arg = true,
+        allow_hyphen_values = true
+    )]
     pub command: Vec<String>,
 }
 
@@ -123,12 +127,24 @@ mod tests {
     #[test]
     fn git_command_keeps_hyphenated_arguments() {
         let cli = parse(&["log", "--oneline", "-n", "1"]).unwrap();
-        assert_eq!(cli.action(), Action::Git(strings(&["log", "--oneline", "-n", "1"])));
+        assert_eq!(
+            cli.action(),
+            Action::Git(strings(&["log", "--oneline", "-n", "1"]))
+        );
     }
 
     #[test]
     fn options_before_the_git_command_are_parsed() {
-        let cli = parse(&["--omit", "x", "--parallel", "--jobs", "3", "fetch", "--prune"]).unwrap();
+        let cli = parse(&[
+            "--omit",
+            "x",
+            "--parallel",
+            "--jobs",
+            "3",
+            "fetch",
+            "--prune",
+        ])
+        .unwrap();
         assert_eq!(cli.omit.as_deref(), Some("x"));
         assert_eq!(cli.parallelism(), Some(3));
         assert_eq!(cli.action(), Action::Git(strings(&["fetch", "--prune"])));
@@ -142,13 +158,19 @@ mod tests {
 
     #[test]
     fn file_actions_take_an_optional_regex() {
-        assert_eq!(parse(&["--persist"]).unwrap().action(), Action::Persist(None));
+        assert_eq!(
+            parse(&["--persist"]).unwrap().action(),
+            Action::Persist(None)
+        );
         assert_eq!(
             parse(&["--pin", "lib-.*"]).unwrap().action(),
             Action::Pin(Some("lib-.*".into()))
         );
         assert_eq!(parse(&["--remove"]).unwrap().action(), Action::Remove(None));
-        assert_eq!(parse(&["--unpin", "a"]).unwrap().action(), Action::Unpin(Some("a".into())));
+        assert_eq!(
+            parse(&["--unpin", "a"]).unwrap().action(),
+            Action::Unpin(Some("a".into()))
+        );
     }
 
     #[test]
@@ -178,7 +200,16 @@ mod tests {
     #[test]
     fn parallelism_needs_the_parallel_flag() {
         assert_eq!(parse(&["fetch"]).unwrap().parallelism(), None);
-        assert_eq!(parse(&["--jobs", "3", "fetch"]).unwrap().parallelism(), None);
-        assert!(parse(&["--parallel", "fetch"]).unwrap().parallelism().unwrap() >= 1);
+        assert_eq!(
+            parse(&["--jobs", "3", "fetch"]).unwrap().parallelism(),
+            None
+        );
+        assert!(
+            parse(&["--parallel", "fetch"])
+                .unwrap()
+                .parallelism()
+                .unwrap()
+                >= 1
+        );
     }
 }

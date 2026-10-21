@@ -34,7 +34,10 @@ fn clones_all_entries_and_checks_out_pinned_commits() {
         .stdout(predicate::str::contains("a: ok\nb: ok\n"));
 
     assert_eq!(git(&a, &["rev-parse", "HEAD"]), pinned);
-    assert!(!git_ok(&a, &["symbolic-ref", "-q", "HEAD"]), "a must be on a detached HEAD");
+    assert!(
+        !git_ok(&a, &["symbolic-ref", "-q", "HEAD"]),
+        "a must be on a detached HEAD"
+    );
     assert_eq!(git(&b, &["symbolic-ref", "--short", "HEAD"]), "main");
 }
 
@@ -42,11 +45,16 @@ fn clones_all_entries_and_checks_out_pinned_commits() {
 fn existing_directories_are_skipped() {
     let fx = Fixture::new();
     fx.repo("a");
-    fx.write(".git-multi-repo", &format!("[a]\nurl = \"{}\"\n", fx.remote_path("a").display()));
+    fx.write(
+        ".git-multi-repo",
+        &format!("[a]\nurl = \"{}\"\n", fx.remote_path("a").display()),
+    );
     fx.cmd(&["clone"])
         .assert()
         .success()
-        .stdout(predicate::str::contains("a: skipped (directory already exists)"));
+        .stdout(predicate::str::contains(
+            "a: skipped (directory already exists)",
+        ));
 }
 
 #[test]
@@ -71,13 +79,18 @@ fn omit_applies_to_clone() {
 fn a_failing_clone_gives_exit_code_1() {
     let fx = Fixture::new();
     fx.write(".git-multi-repo", "[a]\nurl = \"/does/not/exist.git\"\n");
-    fx.cmd(&["clone"]).assert().code(1).stdout(predicate::str::contains("a: failed"));
+    fx.cmd(&["clone"])
+        .assert()
+        .code(1)
+        .stdout(predicate::str::contains("a: failed"));
 }
 
 #[test]
 fn without_a_file_clone_is_forwarded_to_git() {
     let fx = Fixture::new();
     let remote = fx.remote("a");
-    fx.cmd(&["clone", "-q", remote.to_str().unwrap(), "copy"]).assert().success();
+    fx.cmd(&["clone", "-q", remote.to_str().unwrap(), "copy"])
+        .assert()
+        .success();
     assert!(fx.work.join("copy").join(".git").is_dir());
 }

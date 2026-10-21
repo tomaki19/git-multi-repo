@@ -47,7 +47,9 @@ pub struct Report {
 
 impl Report {
     pub fn failed(&self) -> bool {
-        self.steps.iter().any(|(_, outcome)| matches!(outcome, Outcome::Failed(_)))
+        self.steps
+            .iter()
+            .any(|(_, outcome)| matches!(outcome, Outcome::Failed(_)))
     }
 }
 
@@ -65,12 +67,22 @@ fn run_steps(job: Job, mut execute: impl FnMut(&Step) -> Outcome) -> Report {
     let mut results: Vec<(String, Outcome)> = Vec::with_capacity(job.steps.len());
     if job.skip.is_none() {
         for step in &job.steps {
-            let blocked = step.depends_on.is_some_and(|dep| results[dep].1 != Outcome::Ok);
-            let outcome = if blocked { Outcome::Skipped } else { execute(step) };
+            let blocked = step
+                .depends_on
+                .is_some_and(|dep| results[dep].1 != Outcome::Ok);
+            let outcome = if blocked {
+                Outcome::Skipped
+            } else {
+                execute(step)
+            };
             results.push((step.label.clone(), outcome));
         }
     }
-    Report { name: job.name, skip: job.skip, steps: results }
+    Report {
+        name: job.name,
+        skip: job.skip,
+        steps: results,
+    }
 }
 
 fn command(step: &Step) -> Command {
@@ -80,7 +92,11 @@ fn command(step: &Step) -> Command {
 }
 
 fn outcome(status: ExitStatus) -> Outcome {
-    if status.success() { Outcome::Ok } else { Outcome::Failed(status.code()) }
+    if status.success() {
+        Outcome::Ok
+    } else {
+        Outcome::Failed(status.code())
+    }
 }
 
 fn run_streaming(job: Job) -> Report {
@@ -193,7 +209,6 @@ fn labels(report: &Report, pick: impl Fn(&Outcome) -> bool) -> String {
         .join(", ")
 }
 
-
 #[cfg(all(test, unix))]
 mod tests {
     use super::*;
@@ -208,11 +223,19 @@ mod tests {
     }
 
     fn job(name: &str, steps: Vec<Step>) -> Job {
-        Job { name: name.into(), steps, skip: None }
+        Job {
+            name: name.into(),
+            steps,
+            skip: None,
+        }
     }
 
     fn outcomes(report: &Report) -> Vec<Outcome> {
-        report.steps.iter().map(|(_, outcome)| outcome.clone()).collect()
+        report
+            .steps
+            .iter()
+            .map(|(_, outcome)| outcome.clone())
+            .collect()
     }
 
     #[test]
@@ -231,7 +254,12 @@ mod tests {
         );
         assert_eq!(
             outcomes(&reports[0]),
-            [Outcome::Failed(Some(3)), Outcome::Skipped, Outcome::Skipped, Outcome::Ok]
+            [
+                Outcome::Failed(Some(3)),
+                Outcome::Skipped,
+                Outcome::Skipped,
+                Outcome::Ok
+            ]
         );
         assert!(reports[0].failed());
     }
@@ -253,7 +281,12 @@ mod tests {
     #[test]
     fn parallel_reports_keep_input_order() {
         let jobs = (0..8)
-            .map(|i| job(&format!("r{i}"), vec![step("s", if i % 2 == 0 { "true" } else { "exit 1" }, None)]))
+            .map(|i| {
+                job(
+                    &format!("r{i}"),
+                    vec![step("s", if i % 2 == 0 { "true" } else { "exit 1" }, None)],
+                )
+            })
             .collect();
         let reports = run(jobs, Some(3));
         let names: Vec<&str> = reports.iter().map(|r| r.name.as_str()).collect();
@@ -264,7 +297,10 @@ mod tests {
 
     #[test]
     fn parallel_steps_get_no_stdin() {
-        let reports = run(vec![job("r", vec![step("read", "read line", None)])], Some(1));
+        let reports = run(
+            vec![job("r", vec![step("read", "read line", None)])],
+            Some(1),
+        );
         assert!(reports[0].failed());
     }
 
@@ -279,14 +315,29 @@ mod tests {
     #[test]
     fn summary_lists_status_and_optionally_steps() {
         let reports = vec![
-            Report { name: "a".into(), skip: None, steps: vec![("x".into(), Outcome::Ok)] },
+            Report {
+                name: "a".into(),
+                skip: None,
+                steps: vec![("x".into(), Outcome::Ok)],
+            },
             Report {
                 name: "b".into(),
                 skip: None,
-                steps: vec![("x".into(), Outcome::Failed(Some(2))), ("y".into(), Outcome::Skipped)],
+                steps: vec![
+                    ("x".into(), Outcome::Failed(Some(2))),
+                    ("y".into(), Outcome::Skipped),
+                ],
             },
-            Report { name: "c".into(), skip: Some("directory already exists".into()), steps: vec![] },
-            Report { name: "d".into(), skip: None, steps: vec![("x".into(), Outcome::Failed(None))] },
+            Report {
+                name: "c".into(),
+                skip: Some("directory already exists".into()),
+                steps: vec![],
+            },
+            Report {
+                name: "d".into(),
+                skip: None,
+                steps: vec![("x".into(), Outcome::Failed(None))],
+            },
         ];
         assert_eq!(
             summarize(&reports, true),

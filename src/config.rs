@@ -83,8 +83,8 @@ impl Config {
         if !path.exists() {
             return Ok(None);
         }
-        let text = fs::read_to_string(&path)
-            .with_context(|| format!("cannot read {}", path.display()))?;
+        let text =
+            fs::read_to_string(&path).with_context(|| format!("cannot read {}", path.display()))?;
         Config::parse(&text)
             .map(Some)
             .with_context(|| format!("invalid {FILE_NAME}"))
@@ -97,8 +97,7 @@ impl Config {
         let temporary = dir.join(format!("{FILE_NAME}.tmp"));
         fs::write(&temporary, self.to_toml())
             .with_context(|| format!("cannot write {}", temporary.display()))?;
-        fs::rename(&temporary, &path)
-            .with_context(|| format!("cannot replace {}", path.display()))
+        fs::rename(&temporary, &path).with_context(|| format!("cannot replace {}", path.display()))
     }
 
     pub fn delete(dir: &Path) -> Result<()> {
@@ -118,8 +117,14 @@ impl Config {
 /// is quoted so it stays a single table name.
 fn toml_key(name: &str) -> String {
     let bare = !name.is_empty()
-        && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_');
-    if bare { name.to_owned() } else { toml_string(name) }
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_');
+    if bare {
+        name.to_owned()
+    } else {
+        toml_string(name)
+    }
 }
 
 fn toml_string(value: &str) -> String {
@@ -168,7 +173,10 @@ mod tests {
                 ("alpha".to_owned(), entry("u2", Some("main"), Some("abc"))),
             ]
         );
-        assert_eq!(config.get("alpha"), Some(&entry("u2", Some("main"), Some("abc"))));
+        assert_eq!(
+            config.get("alpha"),
+            Some(&entry("u2", Some("main"), Some("abc")))
+        );
         assert_eq!(config.get("missing"), None);
     }
 
@@ -176,7 +184,10 @@ mod tests {
     fn writes_the_documented_format() {
         let config = Config {
             entries: vec![
-                ("my-lib".into(), entry("git@host:me/my-lib.git", Some("main"), Some("3d193e9"))),
+                (
+                    "my-lib".into(),
+                    entry("git@host:me/my-lib.git", Some("main"), Some("3d193e9")),
+                ),
                 ("other".into(), entry("u", None, None)),
             ],
         };
@@ -233,7 +244,9 @@ mod tests {
     #[test]
     fn save_then_load_round_trips_and_leaves_no_temporary_file() {
         let dir = tempfile::tempdir().unwrap();
-        let config = Config { entries: vec![("a".into(), entry("u", Some("main"), None))] };
+        let config = Config {
+            entries: vec![("a".into(), entry("u", Some("main"), None))],
+        };
         config.save(dir.path()).unwrap();
         assert_eq!(Config::load(dir.path()).unwrap(), Some(config));
         assert!(!dir.path().join(format!("{FILE_NAME}.tmp")).exists());

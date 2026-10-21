@@ -54,7 +54,9 @@ fn git_command(
         .map(|repo| Job {
             steps: vec![Step {
                 label: "git".into(),
-                argv: std::iter::once("git".to_owned()).chain(args.iter().cloned()).collect(),
+                argv: std::iter::once("git".to_owned())
+                    .chain(args.iter().cloned())
+                    .collect(),
                 cwd: root.join(&repo.name),
                 depends_on: None,
             }],
@@ -83,7 +85,10 @@ fn clone(
         return Ok(status.success());
     };
     let repos = select::select(root, Some(&config), omit, false)?;
-    let jobs = repos.into_iter().map(|repo| clone_job(root, repo, args)).collect();
+    let jobs = repos
+        .into_iter()
+        .map(|repo| clone_job(root, repo, args))
+        .collect();
     Ok(execute(jobs, parallelism, false))
 }
 
@@ -111,14 +116,25 @@ fn clone_job(root: &Path, repo: Repo, args: &[String]) -> Job {
     if let Some(commit) = &entry.commit {
         steps.push(Step {
             label: "checkout".into(),
-            argv: ["git", "-C", repo.name.as_str(), "checkout", "--detach", commit.as_str()]
-                .map(String::from)
-                .to_vec(),
+            argv: [
+                "git",
+                "-C",
+                repo.name.as_str(),
+                "checkout",
+                "--detach",
+                commit.as_str(),
+            ]
+            .map(String::from)
+            .to_vec(),
             cwd: root.to_path_buf(),
             depends_on: Some(0),
         });
     }
-    Job { name: repo.name, steps, skip: None }
+    Job {
+        name: repo.name,
+        steps,
+        skip: None,
+    }
 }
 
 fn compile(filter: Option<&str>) -> Result<Option<Regex>> {
@@ -131,7 +147,12 @@ fn matches(filter: Option<&Regex>, name: &str) -> bool {
 
 /// `--persist` / `--pin`: rebuild the file from the live sub-directories.
 /// The file is overwritten, so entries not matched this time disappear.
-fn write_config(root: &Path, filter: Option<&str>, omit: Option<&Regex>, pin: bool) -> Result<bool> {
+fn write_config(
+    root: &Path,
+    filter: Option<&str>,
+    omit: Option<&Regex>,
+    pin: bool,
+) -> Result<bool> {
     let filter = compile(filter)?;
     let previous = Config::load(root)?;
     let mut config = Config::default();
@@ -145,7 +166,10 @@ fn write_config(root: &Path, filter: Option<&str>, omit: Option<&Regex>, pin: bo
             continue;
         };
         let branch = git::current_branch(&dir).or_else(|| {
-            previous.as_ref().and_then(|c| c.get(&name)).and_then(|e| e.branch.clone())
+            previous
+                .as_ref()
+                .and_then(|c| c.get(&name))
+                .and_then(|e| e.branch.clone())
         });
         let commit = if pin {
             let Some(commit) = git::head_commit(&dir) else {
@@ -157,7 +181,14 @@ fn write_config(root: &Path, filter: Option<&str>, omit: Option<&Regex>, pin: bo
             None
         };
         println!("{} {name}", if pin { "pinning" } else { "persisting" });
-        config.entries.push((name, Entry { url, branch, commit }));
+        config.entries.push((
+            name,
+            Entry {
+                url,
+                branch,
+                commit,
+            },
+        ));
     }
     if config.entries.is_empty() {
         bail!("no repositories matched; {FILE_NAME} left unchanged");
@@ -216,7 +247,10 @@ fn run_tasks(
     let tasks = tasks::load(path)?;
     let config = Config::load(root)?;
     let repos = select::select(root, config.as_ref(), omit, true)?;
-    let jobs = repos.into_iter().map(|repo| task_job(root, repo, &tasks)).collect();
+    let jobs = repos
+        .into_iter()
+        .map(|repo| task_job(root, repo, &tasks))
+        .collect();
     Ok(execute(jobs, parallelism, true))
 }
 
@@ -228,7 +262,9 @@ fn task_job(root: &Path, repo: Repo, tasks: &[Task]) -> Job {
     let entry = repo.entry.unwrap_or_default();
     let vars = Vars {
         name: repo.name.clone(),
-        url: Some(entry.url).filter(|url| !url.is_empty()).or_else(|| git::remote_url(&dir)),
+        url: Some(entry.url)
+            .filter(|url| !url.is_empty())
+            .or_else(|| git::remote_url(&dir)),
         branch: entry.branch.or_else(|| git::current_branch(&dir)),
         commit: entry.commit.or_else(|| git::head_commit(&dir)),
     };
@@ -259,7 +295,11 @@ fn task_job(root: &Path, repo: Repo, tasks: &[Task]) -> Job {
             }
         })
         .collect();
-    Job { name: repo.name, steps, skip: None }
+    Job {
+        name: repo.name,
+        steps,
+        skip: None,
+    }
 }
 
 fn shell(command: &str) -> Vec<String> {

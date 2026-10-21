@@ -40,10 +40,13 @@ pub fn parse(text: &str) -> Result<Vec<Task>> {
         }
     }
     for task in &tasks {
-        if let Some(dependency) = &task.depends_on {
-            if !names.contains(dependency.as_str()) {
-                bail!("task '{}' depends on unknown task '{dependency}'", task.task);
-            }
+        if let Some(dependency) = &task.depends_on
+            && !names.contains(dependency.as_str())
+        {
+            bail!(
+                "task '{}' depends on unknown task '{dependency}'",
+                task.task
+            );
         }
     }
     order(tasks)
@@ -123,7 +126,11 @@ mod tests {
     use super::*;
 
     fn order_of(text: &str) -> Vec<String> {
-        parse(text).unwrap().into_iter().map(|task| task.task).collect()
+        parse(text)
+            .unwrap()
+            .into_iter()
+            .map(|task| task.task)
+            .collect()
     }
 
     fn error(text: &str) -> String {
@@ -132,13 +139,22 @@ mod tests {
 
     #[test]
     fn parses_tasks_with_optional_dependency() {
-        let tasks = parse(r#"[{"task":"a","command":"x"},{"task":"b","dependsOn":"a","command":"y"}]"#)
-            .unwrap();
+        let tasks =
+            parse(r#"[{"task":"a","command":"x"},{"task":"b","dependsOn":"a","command":"y"}]"#)
+                .unwrap();
         assert_eq!(
             tasks,
             vec![
-                Task { task: "a".into(), depends_on: None, command: "x".into() },
-                Task { task: "b".into(), depends_on: Some("a".into()), command: "y".into() },
+                Task {
+                    task: "a".into(),
+                    depends_on: None,
+                    command: "x".into()
+                },
+                Task {
+                    task: "b".into(),
+                    depends_on: Some("a".into()),
+                    command: "y".into()
+                },
             ]
         );
     }
@@ -146,7 +162,9 @@ mod tests {
     #[test]
     fn independent_tasks_keep_file_order() {
         assert_eq!(
-            order_of(r#"[{"task":"x","command":""},{"task":"y","command":""},{"task":"z","command":""}]"#),
+            order_of(
+                r#"[{"task":"x","command":""},{"task":"y","command":""},{"task":"z","command":""}]"#
+            ),
             ["x", "y", "z"]
         );
     }
@@ -213,7 +231,10 @@ mod tests {
 
     #[test]
     fn missing_values_become_empty_and_are_reported_once() {
-        let vars = Vars { name: "lib".into(), ..Vars::default() };
+        let vars = Vars {
+            name: "lib".into(),
+            ..Vars::default()
+        };
         let (command, missing) = substitute("[%url%][%url%][%commit%]", &vars);
         assert_eq!(command, "[][][]");
         assert_eq!(missing, ["url", "commit"]);
@@ -227,7 +248,10 @@ mod tests {
 
     #[test]
     fn substituted_values_are_not_substituted_again() {
-        let vars = Vars { name: "%url%".into(), ..vars() };
+        let vars = Vars {
+            name: "%url%".into(),
+            ..vars()
+        };
         let (command, _) = substitute("%name%", &vars);
         assert_eq!(command, "%url%");
     }

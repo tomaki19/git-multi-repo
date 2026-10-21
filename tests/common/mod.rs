@@ -32,7 +32,14 @@ pub fn git(dir: &Path, args: &[&str]) -> String {
 }
 
 pub fn git_ok(dir: &Path, args: &[&str]) -> bool {
-    Command::new("git").arg("-C").arg(dir).args(args).output().expect("git runs").status.success()
+    Command::new("git")
+        .arg("-C")
+        .arg(dir)
+        .args(args)
+        .output()
+        .expect("git runs")
+        .status
+        .success()
 }
 
 pub struct Fixture {
@@ -48,7 +55,11 @@ impl Fixture {
         let work = base.join("work");
         fs::create_dir_all(&work).unwrap();
         fs::create_dir_all(base.join("remotes")).unwrap();
-        Fixture { _tmp: tmp, base, work }
+        Fixture {
+            _tmp: tmp,
+            base,
+            work,
+        }
     }
 
     pub fn remote_path(&self, name: &str) -> PathBuf {
@@ -62,7 +73,16 @@ impl Fixture {
         git(&seed, &["init", "-q", "-b", "main"]);
         git(&seed, &["commit", "-q", "--allow-empty", "-m", "first"]);
         let remote = self.remote_path(name);
-        git(&self.base, &["clone", "-q", "--bare", seed.to_str().unwrap(), remote.to_str().unwrap()]);
+        git(
+            &self.base,
+            &[
+                "clone",
+                "-q",
+                "--bare",
+                seed.to_str().unwrap(),
+                remote.to_str().unwrap(),
+            ],
+        );
         remote
     }
 

@@ -11,11 +11,19 @@ use git_multi_repo::config::{Config, Entry};
 use predicates::prelude::*;
 
 fn entry(url: &Path, branch: &str, commit: Option<String>) -> Entry {
-    Entry { url: url.to_str().unwrap().into(), branch: Some(branch.into()), commit }
+    Entry {
+        url: url.to_str().unwrap().into(),
+        branch: Some(branch.into()),
+        commit,
+    }
 }
 
 fn names(config: &Config) -> Vec<&str> {
-    config.entries.iter().map(|(name, _)| name.as_str()).collect()
+    config
+        .entries
+        .iter()
+        .map(|(name, _)| name.as_str())
+        .collect()
 }
 
 #[test]
@@ -39,7 +47,9 @@ fn persist_regex_and_omit_select_repositories() {
     for name in ["app", "lib-x", "lib-y"] {
         fx.repo(name);
     }
-    fx.cmd(&["--omit", "lib-y", "--persist", "lib-.*"]).assert().success();
+    fx.cmd(&["--omit", "lib-y", "--persist", "lib-.*"])
+        .assert()
+        .success();
     assert_eq!(names(&fx.config().unwrap()), ["lib-x"]);
 }
 
@@ -47,7 +57,10 @@ fn persist_regex_and_omit_select_repositories() {
 fn persist_overwrites_the_file_and_drops_pins() {
     let fx = Fixture::new();
     fx.repo("a");
-    fx.write(".git-multi-repo", "[old]\nurl = \"u\"\n\n[a]\nurl = \"u\"\ncommit = \"abc\"\n");
+    fx.write(
+        ".git-multi-repo",
+        "[old]\nurl = \"u\"\n\n[a]\nurl = \"u\"\ncommit = \"abc\"\n",
+    );
     fx.cmd(&["--persist"]).assert().success();
     assert_eq!(
         fx.config().unwrap().entries,
@@ -60,9 +73,15 @@ fn persist_keeps_the_branch_from_the_file_for_a_detached_head() {
     let fx = Fixture::new();
     let a = fx.repo("a");
     git(&a, &["checkout", "-q", "--detach"]);
-    fx.write(".git-multi-repo", "[a]\nurl = \"u\"\nbranch = \"develop\"\n");
+    fx.write(
+        ".git-multi-repo",
+        "[a]\nurl = \"u\"\nbranch = \"develop\"\n",
+    );
     fx.cmd(&["--persist"]).assert().success();
-    assert_eq!(fx.config().unwrap().get("a").unwrap().branch.as_deref(), Some("develop"));
+    assert_eq!(
+        fx.config().unwrap().get("a").unwrap().branch.as_deref(),
+        Some("develop")
+    );
 }
 
 #[test]
@@ -73,7 +92,10 @@ fn pin_records_the_head_commit() {
     fx.cmd(&["--pin"]).assert().success();
     assert_eq!(
         fx.config().unwrap().entries,
-        vec![("a".to_owned(), entry(&fx.remote_path("a"), "main", Some(head)))]
+        vec![(
+            "a".to_owned(),
+            entry(&fx.remote_path("a"), "main", Some(head))
+        )]
     );
 }
 
@@ -92,7 +114,10 @@ fn an_empty_match_leaves_the_file_untouched() {
 #[test]
 fn remove_deletes_matching_entries() {
     let fx = Fixture::new();
-    fx.write(".git-multi-repo", "[a]\nurl = \"u\"\n[b]\nurl = \"u\"\n[c]\nurl = \"u\"\n");
+    fx.write(
+        ".git-multi-repo",
+        "[a]\nurl = \"u\"\n[b]\nurl = \"u\"\n[c]\nurl = \"u\"\n",
+    );
     fx.cmd(&["--remove", "a|b"]).assert().success();
     assert_eq!(names(&fx.config().unwrap()), ["c"]);
 }

@@ -28,10 +28,11 @@ pub fn scan(root: &Path) -> Result<Vec<String>> {
     for dirent in entries {
         let dirent = dirent?;
         let path = dirent.path();
-        if path.is_dir() && path.join(".git").exists() {
-            if let Some(name) = dirent.file_name().to_str() {
-                names.push(name.to_owned());
-            }
+        if path.is_dir()
+            && path.join(".git").exists()
+            && let Some(name) = dirent.file_name().to_str()
+        {
+            names.push(name.to_owned());
         }
     }
     names.sort();
@@ -66,7 +67,10 @@ pub fn select(
                     eprintln!("warning: skipping '{name}': directory does not exist");
                     continue;
                 }
-                repos.push(Repo { name: name.clone(), entry: Some(entry.clone()) });
+                repos.push(Repo {
+                    name: name.clone(),
+                    entry: Some(entry.clone()),
+                });
             }
         }
         None => {

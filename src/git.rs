@@ -66,7 +66,10 @@ mod tests {
     fn reads_branch_and_commit() {
         let dir = repository();
         assert_eq!(head_commit(dir.path()), None);
-        git(dir.path(), &["commit", "-q", "--allow-empty", "-m", "first"]);
+        git(
+            dir.path(),
+            &["commit", "-q", "--allow-empty", "-m", "first"],
+        );
         assert_eq!(head_commit(dir.path()).unwrap().len(), 40);
         assert_eq!(current_branch(dir.path()).as_deref(), Some("main"));
     }
@@ -74,7 +77,10 @@ mod tests {
     #[test]
     fn detached_head_has_no_branch() {
         let dir = repository();
-        git(dir.path(), &["commit", "-q", "--allow-empty", "-m", "first"]);
+        git(
+            dir.path(),
+            &["commit", "-q", "--allow-empty", "-m", "first"],
+        );
         git(dir.path(), &["checkout", "-q", "--detach"]);
         assert_eq!(current_branch(dir.path()), None);
     }
@@ -83,9 +89,21 @@ mod tests {
     fn prefers_origin_and_falls_back_to_the_first_remote() {
         let dir = repository();
         assert_eq!(remote_url(dir.path()), None);
-        git(dir.path(), &["remote", "add", "upstream", "https://example.com/up.git"]);
-        assert_eq!(remote_url(dir.path()).as_deref(), Some("https://example.com/up.git"));
-        git(dir.path(), &["remote", "add", "origin", "https://example.com/origin.git"]);
-        assert_eq!(remote_url(dir.path()).as_deref(), Some("https://example.com/origin.git"));
+        git(
+            dir.path(),
+            &["remote", "add", "upstream", "https://example.com/up.git"],
+        );
+        assert_eq!(
+            remote_url(dir.path()).as_deref(),
+            Some("https://example.com/up.git")
+        );
+        git(
+            dir.path(),
+            &["remote", "add", "origin", "https://example.com/origin.git"],
+        );
+        assert_eq!(
+            remote_url(dir.path()).as_deref(),
+            Some("https://example.com/origin.git")
+        );
     }
 }

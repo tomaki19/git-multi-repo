@@ -51,7 +51,10 @@ fn a_file_limits_the_repositories_and_missing_ones_are_skipped() {
     let fx = Fixture::new();
     let a = fx.repo("a");
     let b = fx.repo("b");
-    fx.write(".git-multi-repo", "[a]\nurl = \"u\"\n\n[ghost]\nurl = \"u\"\n");
+    fx.write(
+        ".git-multi-repo",
+        "[a]\nurl = \"u\"\n\n[ghost]\nurl = \"u\"\n",
+    );
     fx.cmd(&["tag", "v1"])
         .assert()
         .success()
@@ -99,7 +102,9 @@ fn an_invalid_omit_regex_is_a_usage_error() {
 fn parallel_runs_in_every_repository() {
     let fx = Fixture::new();
     let repos: Vec<_> = ["a", "b", "c"].iter().map(|name| fx.repo(name)).collect();
-    fx.cmd(&["--parallel", "--jobs", "2", "tag", "v1"]).assert().success();
+    fx.cmd(&["--parallel", "--jobs", "2", "tag", "v1"])
+        .assert()
+        .success();
     assert!(repos.iter().all(|dir| has_tag(dir)));
 }
 

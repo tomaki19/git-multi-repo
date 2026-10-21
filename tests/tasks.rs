@@ -39,10 +39,19 @@ fn runs_tasks_in_dependency_order_with_variables() {
 fn file_values_take_precedence_over_live_values() {
     let fx = Fixture::new();
     let a = fx.repo("a");
-    fx.write(".git-multi-repo", "[a]\nurl = \"u\"\ncommit = \"pinned123\"\n");
-    fx.write("tasks.json", r#"[{"task": "t", "command": "echo %commit% %url% %branch% > out.txt"}]"#);
+    fx.write(
+        ".git-multi-repo",
+        "[a]\nurl = \"u\"\ncommit = \"pinned123\"\n",
+    );
+    fx.write(
+        "tasks.json",
+        r#"[{"task": "t", "command": "echo %commit% %url% %branch% > out.txt"}]"#,
+    );
     fx.cmd(&["--tasks", "tasks.json"]).assert().success();
-    assert_eq!(fs::read_to_string(a.join("out.txt")).unwrap(), "pinned123 u main\n");
+    assert_eq!(
+        fs::read_to_string(a.join("out.txt")).unwrap(),
+        "pinned123 u main\n"
+    );
 }
 
 #[test]
@@ -50,9 +59,15 @@ fn commit_falls_back_to_head() {
     let fx = Fixture::new();
     let a = fx.repo("a");
     let head = git(&a, &["rev-parse", "HEAD"]);
-    fx.write("tasks.json", r#"[{"task": "t", "command": "echo %commit% > out.txt"}]"#);
+    fx.write(
+        "tasks.json",
+        r#"[{"task": "t", "command": "echo %commit% > out.txt"}]"#,
+    );
     fx.cmd(&["--tasks", "tasks.json"]).assert().success();
-    assert_eq!(fs::read_to_string(a.join("out.txt")).unwrap(), format!("{head}\n"));
+    assert_eq!(
+        fs::read_to_string(a.join("out.txt")).unwrap(),
+        format!("{head}\n")
+    );
 }
 
 #[test]
@@ -70,7 +85,9 @@ fn a_failed_task_skips_only_its_dependents() {
     fx.cmd(&["--tasks", "tasks.json"])
         .assert()
         .code(1)
-        .stdout(predicate::str::contains("a: failed (exit 3) [failed: broken] [skipped: after]"));
+        .stdout(predicate::str::contains(
+            "a: failed (exit 3) [failed: broken] [skipped: after]",
+        ));
     assert!(!a.join("after.txt").exists());
     assert!(a.join("other.txt").exists());
 }
@@ -79,8 +96,13 @@ fn a_failed_task_skips_only_its_dependents() {
 fn parallel_tasks_run_in_every_repository() {
     let fx = Fixture::new();
     let repos: Vec<_> = ["a", "b", "c"].iter().map(|name| fx.repo(name)).collect();
-    fx.write("tasks.json", r#"[{"task": "t", "command": "touch done.txt"}]"#);
-    fx.cmd(&["--parallel", "--tasks", "tasks.json"]).assert().success();
+    fx.write(
+        "tasks.json",
+        r#"[{"task": "t", "command": "touch done.txt"}]"#,
+    );
+    fx.cmd(&["--parallel", "--tasks", "tasks.json"])
+        .assert()
+        .success();
     assert!(repos.iter().all(|dir| dir.join("done.txt").exists()));
 }
 
@@ -89,8 +111,13 @@ fn omit_applies_to_tasks() {
     let fx = Fixture::new();
     let a = fx.repo("a");
     let b = fx.repo("b");
-    fx.write("tasks.json", r#"[{"task": "t", "command": "touch done.txt"}]"#);
-    fx.cmd(&["--omit", "b", "--tasks", "tasks.json"]).assert().success();
+    fx.write(
+        "tasks.json",
+        r#"[{"task": "t", "command": "touch done.txt"}]"#,
+    );
+    fx.cmd(&["--omit", "b", "--tasks", "tasks.json"])
+        .assert()
+        .success();
     assert!(a.join("done.txt").exists());
     assert!(!b.join("done.txt").exists());
 }
@@ -119,10 +146,15 @@ fn a_missing_variable_warns_and_becomes_empty() {
     let solo = fx.work.join("solo");
     fs::create_dir(&solo).unwrap();
     git(&solo, &["init", "-q", "-b", "main"]);
-    fx.write("tasks.json", r#"[{"task": "t", "command": "echo [%url%] > out.txt"}]"#);
+    fx.write(
+        "tasks.json",
+        r#"[{"task": "t", "command": "echo [%url%] > out.txt"}]"#,
+    );
     fx.cmd(&["--tasks", "tasks.json"])
         .assert()
         .success()
-        .stderr(predicate::str::contains("warning: solo: %url% has no value"));
+        .stderr(predicate::str::contains(
+            "warning: solo: %url% has no value",
+        ));
     assert_eq!(fs::read_to_string(solo.join("out.txt")).unwrap(), "[]\n");
 }
