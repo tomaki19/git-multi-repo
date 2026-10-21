@@ -94,3 +94,56 @@ fn without_a_file_clone_is_forwarded_to_git() {
         .success();
     assert!(fx.work.join("copy").join(".git").is_dir());
 }
+
+#[test]
+fn rejects_a_repository_name_that_escapes_the_work_directory() {
+    let fx = Fixture::new();
+    fx.remote("x");
+    fx.write(
+        ".git-multi-repo",
+        &format!(
+            "[\"../escaped\"]\nurl = \"{}\"\n",
+            fx.remote_path("x").display()
+        ),
+    );
+    fx.cmd(&["clone"])
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains(
+            "invalid repository name '../escaped'",
+        ));
+    assert!(!fx.base.join("escaped").exists());
+}
+
+#[test]
+fn a_url_starting_with_a_dash_is_not_treated_as_an_option() {
+    let fx = Fixture::new();
+    let marker = fx.base.join("PWNED");
+    fx.write(
+        ".git-multi-repo",
+        &format!(
+            "[a]\nurl = \"--upload-pack=touch {};git-upload-pack\"\n",
+            marker.display()
+        ),
+    );
+    fx.cmd(&["clone"]).assert().code(1);
+    assert!(!marker.exists());
+    assert!(!fx.work.join("PWNED").exists());
+}
+
+#[test]
+fn a_pinned_commit_starting_with_a_dash_is_not_treated_as_an_option() {
+    let fx = Fixture::new();
+    fx.remote("a");
+    fx.write(
+        ".git-multi-repo",
+        &format!(
+            "[a]\nurl = \"{}\"\ncommit = \"--help\"\n",
+            fx.remote_path("a").display()
+        ),
+    );
+    fx.cmd(&["clone"])
+        .assert()
+        .code(1)
+        .stdout(predicate::str::contains("a: failed"));
+}

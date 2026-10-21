@@ -5,7 +5,7 @@
 //! url, an optional branch and an optional pinned commit.
 
 use std::fs;
-use std::path::Path;
+use std::path::{Component, Path};
 
 use anyhow::{Context, Result, bail};
 
@@ -37,6 +37,7 @@ impl Config {
             let toml::Value::Table(fields) = value else {
                 bail!("'{name}' must be a table");
             };
+            validate_name(&name)?;
             let mut entry = Entry::default();
             for (key, value) in fields {
                 match (key.as_str(), value) {
@@ -111,6 +112,26 @@ impl Config {
             .find(|(entry_name, _)| entry_name == name)
             .map(|(_, entry)| entry)
     }
+}
+
+/// A repository name becomes a directory below the working directory and an
+/// argument to git, so it must be a single plain path component.
+pub fn validate_name(name: &str) -> Result<()> {
+    let reason = if name.is_empty() {
+        "must not be empty"
+    } else if name.starts_with('-') {
+        "must not start with '-'"
+    } else if name.contains('/') || name.contains('\\') {
+        "must not contain a path separator"
+    } else if !matches!(
+        Path::new(name).components().collect::<Vec<_>>().as_slice(),
+        [Component::Normal(_)]
+    ) {
+        "must be a plain directory name"
+    } else {
+        return Ok(());
+    };
+    bail!("invalid repository name '{name}': {reason}")
 }
 
 /// Bare keys are written as-is; anything else (e.g. names containing dots)
@@ -233,6 +254,20 @@ mod tests {
     #[test]
     fn rejects_unknown_keys() {
         assert!(error("[a]\nurl = \"u\"\nfoo = \"x\"\n").contains("[a] unknown key 'foo'"));
+    }
+
+    #[test]
+    fn rejects_unsafe_repository_names() {
+        for name in ["../x", "/abs", "a/b", "a\\b", ".", "..", "", "-x"] {
+            let message = validate_name(name).unwrap_err().to_string();
+            assert!(
+                message.starts_with(&format!("invalid repository name '{name}': ")),
+                "{message}"
+            );
+            let text = format!("[{}]\nurl = \"u\"\n", toml_string(name));
+            assert!(error(&text).contains("invalid repository name"), "{name}");
+        }
+        assert!(validate_name("my-lib.v2").is_ok());
     }
 
     #[test]

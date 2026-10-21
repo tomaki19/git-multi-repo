@@ -13,7 +13,7 @@ use anyhow::{Context, Result, bail};
 use regex::Regex;
 
 use crate::cli::{Action, Cli};
-use crate::config::{Config, Entry, FILE_NAME};
+use crate::config::{Config, Entry, FILE_NAME, validate_name};
 use crate::git;
 use crate::runner::{self, Job, Step};
 use crate::select::{self, Repo};
@@ -41,6 +41,12 @@ fn execute(jobs: Vec<Job>, parallelism: Option<usize>, show_steps: bool) -> bool
     !reports.iter().any(runner::Report::failed)
 }
 
+fn warn_if_empty(repos: &[Repo]) {
+    if repos.is_empty() {
+        eprintln!("warning: no repositories selected");
+    }
+}
+
 fn git_command(
     root: &Path,
     args: &[String],
@@ -49,6 +55,7 @@ fn git_command(
 ) -> Result<bool> {
     let config = Config::load(root)?;
     let repos = select::select(root, config.as_ref(), omit, true)?;
+    warn_if_empty(&repos);
     let jobs = repos
         .into_iter()
         .map(|repo| Job {
@@ -85,6 +92,7 @@ fn clone(
         return Ok(status.success());
     };
     let repos = select::select(root, Some(&config), omit, false)?;
+    warn_if_empty(&repos);
     let jobs = repos
         .into_iter()
         .map(|repo| clone_job(root, repo, args))
@@ -106,7 +114,7 @@ fn clone_job(root: &Path, repo: Repo, args: &[String]) -> Job {
         argv.extend(["--branch".to_owned(), branch.clone()]);
     }
     argv.extend(args.iter().cloned());
-    argv.extend([entry.url.clone(), repo.name.clone()]);
+    argv.extend(["--".to_owned(), entry.url.clone(), repo.name.clone()]);
     let mut steps = vec![Step {
         label: "clone".into(),
         argv,
@@ -122,6 +130,7 @@ fn clone_job(root: &Path, repo: Repo, args: &[String]) -> Job {
                 repo.name.as_str(),
                 "checkout",
                 "--detach",
+                "--end-of-options",
                 commit.as_str(),
             ]
             .map(String::from)
@@ -158,6 +167,10 @@ fn write_config(
     let mut config = Config::default();
     for name in select::scan(root)? {
         if !matches(filter.as_ref(), &name) || omit.is_some_and(|re| re.is_match(&name)) {
+            continue;
+        }
+        if let Err(error) = validate_name(&name) {
+            eprintln!("warning: skipping '{name}': {error}");
             continue;
         }
         let dir = root.join(&name);
@@ -247,6 +260,7 @@ fn run_tasks(
     let tasks = tasks::load(path)?;
     let config = Config::load(root)?;
     let repos = select::select(root, config.as_ref(), omit, true)?;
+    warn_if_empty(&repos);
     let jobs = repos
         .into_iter()
         .map(|repo| task_job(root, repo, &tasks))

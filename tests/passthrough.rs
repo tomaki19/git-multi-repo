@@ -114,3 +114,14 @@ fn conflicting_actions_are_usage_errors() {
     fx.cmd(&["--persist", "--pin"]).assert().code(2);
     fx.cmd(&[]).assert().code(2);
 }
+
+#[test]
+fn warns_when_no_repositories_are_selected() {
+    let fx = Fixture::new();
+    fx.cmd(&["status"])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains(
+            "warning: no repositories selected",
+        ));
+}
