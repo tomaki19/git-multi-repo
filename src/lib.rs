@@ -9,5 +9,6 @@ pub mod cli;
 pub mod config;
 pub mod git;
 pub mod select;
+pub mod runner;
 
 pub mod tasks;
