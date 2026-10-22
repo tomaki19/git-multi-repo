@@ -10,12 +10,18 @@ use common::{Fixture, git};
 use git_multi_repo::config::{Config, Entry};
 use predicates::prelude::*;
 
-fn entry(url: &Path, branch: &str, commit: Option<String>) -> Entry {
+fn entry(url: &str, branch: &str, commit: Option<String>) -> Entry {
     Entry {
-        url: url.to_str().unwrap().into(),
+        url: url.into(),
         branch: Some(branch.into()),
         commit,
     }
+}
+
+/// The `origin` url as git stored it, which can differ from the path passed
+/// to `git clone` on Windows (separators, short names).
+fn origin(repo: &Path) -> String {
+    git(repo, &["remote", "get-url", "origin"])
 }
 
 fn names(config: &Config) -> Vec<&str> {
@@ -29,14 +35,14 @@ fn names(config: &Config) -> Vec<&str> {
 #[test]
 fn persist_writes_url_and_branch_of_every_repository() {
     let fx = Fixture::new();
-    fx.repo("b");
-    fx.repo("a");
+    let b = fx.repo("b");
+    let a = fx.repo("a");
     fx.cmd(&["--persist"]).assert().success();
     assert_eq!(
         fx.config().unwrap().entries,
         vec![
-            ("a".to_owned(), entry(&fx.remote_path("a"), "main", None)),
-            ("b".to_owned(), entry(&fx.remote_path("b"), "main", None)),
+            ("a".to_owned(), entry(&origin(&a), "main", None)),
+            ("b".to_owned(), entry(&origin(&b), "main", None)),
         ]
     );
 }
@@ -56,7 +62,7 @@ fn persist_regex_and_omit_select_repositories() {
 #[test]
 fn persist_overwrites_the_file_and_drops_pins() {
     let fx = Fixture::new();
-    fx.repo("a");
+    let a = fx.repo("a");
     fx.write(
         ".git-multi-repo",
         "[old]\nurl = \"u\"\n\n[a]\nurl = \"u\"\ncommit = \"abc\"\n",
@@ -64,7 +70,7 @@ fn persist_overwrites_the_file_and_drops_pins() {
     fx.cmd(&["--persist"]).assert().success();
     assert_eq!(
         fx.config().unwrap().entries,
-        vec![("a".to_owned(), entry(&fx.remote_path("a"), "main", None))]
+        vec![("a".to_owned(), entry(&origin(&a), "main", None))]
     );
 }
 
@@ -92,10 +98,7 @@ fn pin_records_the_head_commit() {
     fx.cmd(&["--pin"]).assert().success();
     assert_eq!(
         fx.config().unwrap().entries,
-        vec![(
-            "a".to_owned(),
-            entry(&fx.remote_path("a"), "main", Some(head))
-        )]
+        vec![("a".to_owned(), entry(&origin(&a), "main", Some(head)))]
     );
 }
 

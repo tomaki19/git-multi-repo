@@ -20,7 +20,7 @@ fn clones_all_entries_and_checks_out_pinned_commits() {
     fx.write(
         ".git-multi-repo",
         &format!(
-            "[a]\nurl = \"{}\"\nbranch = \"main\"\ncommit = \"{pinned}\"\n\n[b]\nurl = \"{}\"\nbranch = \"main\"\n",
+            "[a]\nurl = '{}'\nbranch = \"main\"\ncommit = \"{pinned}\"\n\n[b]\nurl = '{}'\nbranch = \"main\"\n",
             fx.remote_path("a").display(),
             fx.remote_path("b").display()
         ),
@@ -47,7 +47,7 @@ fn existing_directories_are_skipped() {
     fx.repo("a");
     fx.write(
         ".git-multi-repo",
-        &format!("[a]\nurl = \"{}\"\n", fx.remote_path("a").display()),
+        &format!("[a]\nurl = '{}'\n", fx.remote_path("a").display()),
     );
     fx.cmd(&["clone"])
         .assert()
@@ -65,7 +65,7 @@ fn omit_applies_to_clone() {
     fx.write(
         ".git-multi-repo",
         &format!(
-            "[a]\nurl = \"{}\"\n\n[b]\nurl = \"{}\"\n",
+            "[a]\nurl = '{}'\n\n[b]\nurl = '{}'\n",
             fx.remote_path("a").display(),
             fx.remote_path("b").display()
         ),
@@ -102,7 +102,7 @@ fn rejects_a_repository_name_that_escapes_the_work_directory() {
     fx.write(
         ".git-multi-repo",
         &format!(
-            "[\"../escaped\"]\nurl = \"{}\"\n",
+            "[\"../escaped\"]\nurl = '{}'\n",
             fx.remote_path("x").display()
         ),
     );
@@ -122,7 +122,7 @@ fn a_url_starting_with_a_dash_is_not_treated_as_an_option() {
     fx.write(
         ".git-multi-repo",
         &format!(
-            "[a]\nurl = \"--upload-pack=touch {};git-upload-pack\"\n",
+            "[a]\nurl = '--upload-pack=touch {};git-upload-pack'\n",
             marker.display()
         ),
     );
@@ -138,7 +138,7 @@ fn a_pinned_commit_starting_with_a_dash_is_not_treated_as_an_option() {
     fx.write(
         ".git-multi-repo",
         &format!(
-            "[a]\nurl = \"{}\"\ncommit = \"--help\"\n",
+            "[a]\nurl = '{}'\ncommit = \"--help\"\n",
             fx.remote_path("a").display()
         ),
     );
