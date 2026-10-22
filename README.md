@@ -115,6 +115,22 @@ Checks formatting, lints and tests, builds a release binary and writes
 the host platform, plus a `.sha256` file that can be verified with
 `sha256sum -c`. The working tree must be clean.
 
+On Windows, use the PowerShell script instead:
+
+    powershell -ExecutionPolicy Bypass -File deploy.ps1
+
+It runs the same checks and writes
+`dist/git-multi-repo-<version>-<target>.zip` plus a `.sha256` file in the same
+format.
+
+The GitHub Actions workflow `.github/workflows/build.yml` runs the same
+checks and builds archives for Linux (`.tar.gz`) and Windows (`.zip`) on every
+push to `main`, every tag `v*` and every pull request. The archives are
+attached to the workflow run as artifacts. For a tag `v*`, they are also
+published to a GitHub release with generated release notes:
+
+    git tag v0.1.0 && git push origin v0.1.0
+
 ## License
 
 This software is available under the MIT license.
