@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: MIT
 #
 # Checks formatting and lints, runs the tests and builds release archives
-# for Linux and Windows. Archives are uploaded as workflow artifacts and,
-# for tags `v*`, published to a GitHub release.
+# for Linux and Windows plus a Debian package. Archives are uploaded as
+# workflow artifacts and, for tags `v*`, published to a GitHub release.
 
 name: build
 
@@ -78,6 +78,20 @@ jobs:
           tar -czf "dist/$package.tar.gz" -C dist "$package"
           (cd dist && sha256sum "$package.tar.gz" >"$package.tar.gz.sha256")
 
+      - name: Install cargo-deb
+        if: runner.os == 'Linux'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deb
+
+      - name: Package Debian (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          deb="$(cargo deb --locked --no-build --target ${{ matrix.target }})"
+          cp "$deb" dist/
+          (cd dist && sha256sum "$(basename "$deb")" >"$(basename "$deb").sha256")
+
       - name: Package (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -97,6 +111,8 @@ jobs:
             dist/*.tar.gz.sha256
             dist/*.zip
             dist/*.zip.sha256
+            dist/*.deb
+            dist/*.deb.sha256
           if-no-files-found: error
 
   release:

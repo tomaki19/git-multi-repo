@@ -6,6 +6,7 @@
 # Packages a release of git-multi-repo for the host platform:
 #   dist/git-multi-repo-<version>-<target>.tar.gz  (binary, README.md, LICENSE)
 #   dist/git-multi-repo-<version>-<target>.tar.gz.sha256
+#   dist/git-multi-repo_<version>-1_<arch>.deb (+ .sha256), if cargo-deb is installed
 #
 # The working tree must be clean so every archive corresponds to a commit,
 # and formatting, lints and tests must pass before anything is built.
@@ -61,6 +62,22 @@ tar -czf "$dist/$archive" -C "$dist" "$package"
 rm -rf "$staging"
 (cd "$dist" && sha256sum "$archive" >"$archive.sha256")
 
+deb=""
+if cargo deb --version >/dev/null 2>&1; then
+    echo "==> building Debian package"
+    deb_path="$(cargo deb --locked --no-build)"
+    deb="$(basename "$deb_path")"
+    rm -f "$dist/$deb" "$dist/$deb.sha256"
+    cp "$deb_path" "$dist/"
+    (cd "$dist" && sha256sum "$deb" >"$deb.sha256")
+else
+    echo "note: cargo-deb not installed, skipping Debian package (cargo install cargo-deb)"
+fi
+
 echo "==> done"
 echo "archive:  dist/$archive"
 echo "checksum: $(cut -d' ' -f1 "$dist/$archive.sha256")"
+if [[ -n "$deb" ]]; then
+    echo "debian:   dist/$deb"
+    echo "checksum: $(cut -d' ' -f1 "$dist/$deb.sha256")"
+fi

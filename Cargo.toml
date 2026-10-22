@@ -5,6 +5,9 @@ edition = "2024"
 rust-version = "1.88"
 license = "MIT"
 description = "Apply git commands and tasks to multiple git repositories"
+authors = ["Thomas Killer <tkone@gmx.ch>"]
+repository = "https://github.com/tomaki19/git-multi-repo"
+readme = "README.md"
 
 [dependencies]
 anyhow = "1.0.104"
@@ -18,3 +21,17 @@ toml = { version = "1.1.8", features = ["preserve_order"] }
 assert_cmd = "2.2.2"
 predicates = "3.1.4"
 tempfile = "3.27.0"
+
+# Debian package, built with `cargo deb` (https://github.com/kornelski/cargo-deb).
+[package.metadata.deb]
+section = "vcs"
+priority = "optional"
+depends = "$auto, git"
+extended-description = """\
+git-multi-repo is a git plugin that applies git commands, clones and tasks \
+to all git repositories in the sub-directories of the working directory. \
+Run it as `git multi-repo`."""
+assets = [
+    ["target/release/git-multi-repo", "usr/bin/", "755"],
+    ["README.md", "usr/share/doc/git-multi-repo/README.md", "644"],
+]

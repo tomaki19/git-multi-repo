@@ -115,6 +115,13 @@ Checks formatting, lints and tests, builds a release binary and writes
 the host platform, plus a `.sha256` file that can be verified with
 `sha256sum -c`. The working tree must be clean.
 
+If [cargo-deb](https://github.com/kornelski/cargo-deb) is installed
+(`cargo install cargo-deb`), it also writes a Debian package
+`dist/git-multi-repo_<version>-1_<arch>.deb` (plus `.sha256`), which installs
+the binary to `/usr/bin` and depends on `git`:
+
+    sudo apt install ./dist/git-multi-repo_0.1.0-1_amd64.deb
+
 On Windows, use the PowerShell script instead:
 
     powershell -ExecutionPolicy Bypass -File deploy.ps1
@@ -124,7 +131,7 @@ It runs the same checks and writes
 format.
 
 The GitHub Actions workflow `.github/workflows/build.yml` runs the same
-checks and builds archives for Linux (`.tar.gz`) and Windows (`.zip`) on every
+checks and builds archives for Linux (`.tar.gz`, `.deb`) and Windows (`.zip`) on every
 push to `main`, every tag `v*` and every pull request. The archives are
 attached to the workflow run as artifacts. For a tag `v*`, they are also
 published to a GitHub release with generated release notes:
