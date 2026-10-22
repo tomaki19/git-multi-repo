@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SPDX-FileCopyrightText: 2026 Thomas Killer
+  SPDX-License-Identifier: MIT
+
+  Windows Installer package for git-multi-repo, built with WiX Toolset v5:
+
+    wix build wix/main.wxs -arch x64 -d Version=<x.y.z> -d RootDir=<repo> -d BinDir=<dir with git-multi-repo.exe> -o <file>.msi
+
+  Installs per machine into "C:\Program Files\git-multi-repo" and appends that
+  directory to the system PATH, so git finds the binary as `git multi-repo`.
+  The UpgradeCode must never change: it lets a newer MSI replace an older one.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="git-multi-repo"
+           Manufacturer="Thomas Killer"
+           Version="$(var.Version)"
+           UpgradeCode="07A368E2-63F9-4A3F-B8C8-369E835BE320"
+           Scope="perMachine">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/tomaki19/git-multi-repo" />
+    <Property Id="ARPCOMMENTS" Value="Apply git commands and tasks to multiple git repositories" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="git-multi-repo">
+        <Component Id="Binary">
+          <File Id="GitMultiRepoExe" Source="$(var.BinDir)\git-multi-repo.exe" KeyPath="yes" />
+          <Environment Id="Path" Name="PATH" Value="[INSTALLFOLDER]" Part="last" Action="set" System="yes" />
+        </Component>
+        <Component Id="Readme">
+          <File Id="ReadmeMd" Source="$(var.RootDir)\README.md" KeyPath="yes" />
+        </Component>
+        <Component Id="License">
+          <File Id="LicenseFile" Source="$(var.RootDir)\LICENSE" KeyPath="yes" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+
+    <Feature Id="Main">
+      <ComponentRef Id="Binary" />
+      <ComponentRef Id="Readme" />
+      <ComponentRef Id="License" />
+    </Feature>
+  </Package>
+</Wix>

@@ -5,6 +5,7 @@
 # Packages a release of git-multi-repo for the host platform (Windows):
 #   dist/git-multi-repo-<version>-<target>.zip  (binary, README.md, LICENSE)
 #   dist/git-multi-repo-<version>-<target>.zip.sha256
+#   dist/git-multi-repo-<version>-<target>.msi (+ .sha256), if WiX (`wix`) is installed
 #
 # The working tree must be clean so every archive corresponds to a commit,
 # and formatting, lints and tests must pass before anything is built.
@@ -86,3 +87,31 @@ $hash = (Get-FileHash -Algorithm SHA256 $archivePath).Hash.ToLower()
 Write-Host '==> done'
 Write-Host "archive:  dist/$archive"
 Write-Host "checksum: $hash"
+
+# Optional MSI installer, built with WiX Toolset v5 (`dotnet tool install --global wix --version 5.0.2`).
+if (Get-Command wix -ErrorAction SilentlyContinue) {
+    $arch = switch -Wildcard ($target) {
+        'x86_64-*' { 'x64' }
+        'aarch64-*' { 'arm64' }
+        default { Fail "no MSI architecture for target $target" }
+    }
+    $msi = "$package.msi"
+    $msiPath = Join-Path $dist $msi
+    # MSI versions must be numeric: drop any pre-release or build suffix.
+    $msiVersion = $version -replace '[-+].*$', ''
+
+    Write-Host "==> packaging $msi"
+    Invoke-Checked wix @(
+        'build', (Join-Path $root 'wix/main.wxs'), '-arch', $arch,
+        '-d', "Version=$msiVersion",
+        '-d', "RootDir=$root",
+        '-d', "BinDir=$(Join-Path $root 'target/release')",
+        '-o', $msiPath
+    )
+    $msiHash = (Get-FileHash -Algorithm SHA256 $msiPath).Hash.ToLower()
+    [IO.File]::WriteAllText("$msiPath.sha256", "$msiHash  $msi`n")
+    Write-Host "msi:      dist/$msi"
+    Write-Host "checksum: $msiHash"
+} else {
+    Write-Host 'note: wix not installed; skipping the MSI installer'
+}

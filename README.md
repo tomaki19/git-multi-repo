@@ -130,8 +130,16 @@ It runs the same checks and writes
 `dist/git-multi-repo-<version>-<target>.zip` plus a `.sha256` file in the same
 format.
 
+If the [WiX Toolset](https://wixtoolset.org) v5 is installed
+(`dotnet tool install --global wix --version 5.0.2`), it also writes an MSI
+installer `dist/git-multi-repo-<version>-<target>.msi` (plus `.sha256`), which
+installs the binary to `C:\Program Files\git-multi-repo` and adds that
+directory to the system `PATH`:
+
+    msiexec /i dist\git-multi-repo-0.9.0-x86_64-pc-windows-msvc.msi
+
 The GitHub Actions workflow `.github/workflows/build.yml` runs the same
-checks and builds archives for Linux (`.tar.gz`, `.deb`) and Windows (`.zip`) on every
+checks and builds archives for Linux (`.tar.gz`, `.deb`) and Windows (`.zip`, `.msi`) on every
 push to `main`, every tag `v*` and every pull request. The archives are
 attached to the workflow run as artifacts. For a tag `v*`, they are also
 published to a GitHub release with generated release notes:

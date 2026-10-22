@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 #
 # Checks formatting and lints, runs the tests and builds release archives
-# for Linux and Windows plus a Debian package. Archives are uploaded as
+# for Linux and Windows plus a Debian package and a Windows MSI installer. Archives are uploaded as
 # workflow artifacts and, for tags `v*`, published to a GitHub release.
 
 name: build
@@ -103,6 +103,26 @@ jobs:
           $hash = (Get-FileHash -Algorithm SHA256 "dist/$package.zip").Hash.ToLower()
           Set-Content -NoNewline -Path "dist/$package.zip.sha256" -Value "$hash  $package.zip`n"
 
+      - name: Install WiX (Windows)
+        if: runner.os == 'Windows'
+        run: dotnet tool install --global wix --version 5.0.2
+
+      - name: Package MSI (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $package = "${{ steps.meta.outputs.package }}"
+          # MSI versions must be numeric: drop any pre-release or build suffix.
+          $version = ("$(cargo pkgid)" -split '[#@]')[-1] -replace '[-+].*$', ''
+          wix build wix/main.wxs -arch x64 `
+            -d "Version=$version" `
+            -d "RootDir=$PWD" `
+            -d "BinDir=$PWD/target/${{ matrix.target }}/release" `
+            -o "dist/$package.msi"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $hash = (Get-FileHash -Algorithm SHA256 "dist/$package.msi").Hash.ToLower()
+          Set-Content -NoNewline -Path "dist/$package.msi.sha256" -Value "$hash  $package.msi`n"
+
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.meta.outputs.package }}
@@ -111,6 +131,8 @@ jobs:
             dist/*.tar.gz.sha256
             dist/*.zip
             dist/*.zip.sha256
+            dist/*.msi
+            dist/*.msi.sha256
             dist/*.deb
             dist/*.deb.sha256
           if-no-files-found: error
