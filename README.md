@@ -106,6 +106,33 @@ Windows (`cmd /C`) is supported in principle but untested; commands containing
 This installs `git-multi-repo` into `~/.cargo/bin`; with that directory on
 your `PATH`, git finds it as `git multi-repo`.
 
+## Agent skill
+
+`skills/git-multi-repo/` contains an [Agent Skill](https://agentskills.io)
+that teaches AI coding agents such as Claude Code how to use
+`git multi-repo` safely: which commands to run, how to read the output and
+exit codes, and when to ask before changing many repositories at once. The
+agent still needs `git-multi-repo` installed (see above).
+
+Install it for your user, so it is available in every project:
+
+    mkdir -p ~/.claude/skills
+    cp -r skills/git-multi-repo ~/.claude/skills/
+
+or only for one workspace, in the directory that contains your repositories:
+
+    mkdir -p .claude/skills
+    cp -r /path/to/git-multi-repo/skills/git-multi-repo .claude/skills/
+
+On Windows (PowerShell):
+
+    New-Item -ItemType Directory -Force "$HOME\.claude\skills" | Out-Null
+    Copy-Item -Recurse skills\git-multi-repo "$HOME\.claude\skills\"
+
+Start a new session afterwards. Other agents that support Agent Skills
+read the same `SKILL.md`; copy the folder to their skills directory instead.
+To update the skill, copy the folder again.
+
 ## Packaging
 
     ./deploy.sh
