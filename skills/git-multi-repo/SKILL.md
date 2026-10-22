@@ -120,7 +120,7 @@ order:
   manifest entry or else from the repository (`origin` url, current branch,
   `HEAD`).
 
-When you write a tasks file for the user, put it in the scratchpad or a path
+When you write a tasks file for the user, put it in a temporary directory or a path
 they choose, not inside a repository, and give each task a short `task` name.
 
 ## Safety
