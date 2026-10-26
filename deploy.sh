@@ -35,14 +35,24 @@ cargo fmt --check
 cargo clippy --all-targets --locked -- -D warnings
 cargo test --locked
 
-echo "==> building release binary"
-cargo build --release --locked
+# Prefer a statically linked musl build so the binary runs on older distros
+# (a glibc build only runs on systems at least as new as the build host).
+target="$(rustc -vV | sed -n 's/^host: //p')"
+if [[ "$target" == x86_64-unknown-linux-gnu ]] \
+    && rustup target list --installed 2>/dev/null | grep -qx x86_64-unknown-linux-musl; then
+    target=x86_64-unknown-linux-musl
+elif [[ "$target" == x86_64-unknown-linux-gnu ]]; then
+    echo "note: building against host glibc; run 'rustup target add x86_64-unknown-linux-musl'" \
+        "for a binary that also runs on older distros"
+fi
+
+echo "==> building release binary ($target)"
+cargo build --release --locked --target "$target"
 
 # `cargo pkgid` prints e.g. `path+file:///…#0.1.0` or `…#name@0.1.0`.
 pkgid="$(cargo pkgid)"
 version="${pkgid##*#}"
 version="${version##*@}"
-target="$(rustc -vV | sed -n 's/^host: //p')"
 [[ -n "$version" && -n "$target" ]] || fail "cannot determine version or host target"
 
 package="$name-$version-$target"
@@ -57,7 +67,7 @@ if [[ -e "$dist/$archive" ]]; then
 fi
 rm -rf "$staging" "$dist/$archive" "$dist/$archive.sha256"
 mkdir "$staging"
-cp "target/release/$name" README.md LICENSE "$staging/"
+cp "target/$target/release/$name" README.md LICENSE "$staging/"
 tar -czf "$dist/$archive" -C "$dist" "$package"
 rm -rf "$staging"
 (cd "$dist" && sha256sum "$archive" >"$archive.sha256")
@@ -65,7 +75,7 @@ rm -rf "$staging"
 deb=""
 if cargo deb --version >/dev/null 2>&1; then
     echo "==> building Debian package"
-    deb_path="$(cargo deb --locked --no-build)"
+    deb_path="$(cargo deb --locked --no-build --target "$target")"
     deb="$(basename "$deb_path")"
     rm -f "$dist/$deb" "$dist/$deb.sha256"
     cp "$deb_path" "$dist/"
