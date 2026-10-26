@@ -168,7 +168,7 @@ installer `dist/git-multi-repo-<version>-<target>.msi` (plus `.sha256`), which
 installs the binary to `C:\Program Files\git-multi-repo` and adds that
 directory to the system `PATH`:
 
-    msiexec /i dist\git-multi-repo-0.9.0-x86_64-pc-windows-msvc.msi
+    msiexec /i dist\git-multi-repo-0.9.1-x86_64-pc-windows-msvc.msi
 
 The GitHub Actions workflow `.github/workflows/build.yml` runs the same
 checks and builds archives for Linux (`.tar.gz`, `.deb`) and Windows (`.zip`, `.msi`) on every
