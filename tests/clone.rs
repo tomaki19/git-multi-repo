@@ -28,7 +28,7 @@ fn clones_all_entries_and_checks_out_pinned_commits() {
     fs::remove_dir_all(&a).unwrap();
     fs::remove_dir_all(&b).unwrap();
 
-    fx.cmd(&["clone"])
+    fx.cmd(&["--clone"])
         .assert()
         .success()
         .stdout(predicate::str::contains("a: ok\nb: ok\n"));
@@ -49,7 +49,7 @@ fn existing_directories_are_skipped() {
         ".git-multi-repo",
         &format!("[a]\nurl = '{}'\n", fx.remote_path("a").display()),
     );
-    fx.cmd(&["clone"])
+    fx.cmd(&["--clone"])
         .assert()
         .success()
         .stdout(predicate::str::contains(
@@ -70,7 +70,7 @@ fn omit_applies_to_clone() {
             fx.remote_path("b").display()
         ),
     );
-    fx.cmd(&["--omit", "b", "clone"]).assert().success();
+    fx.cmd(&["--omit", "b", "--clone"]).assert().success();
     assert!(fx.work.join("a").join(".git").is_dir());
     assert!(!fx.work.join("b").exists());
 }
@@ -79,20 +79,25 @@ fn omit_applies_to_clone() {
 fn a_failing_clone_gives_exit_code_1() {
     let fx = Fixture::new();
     fx.write(".git-multi-repo", "[a]\nurl = \"/does/not/exist.git\"\n");
-    fx.cmd(&["clone"])
+    fx.cmd(&["--clone"])
         .assert()
         .code(1)
         .stdout(predicate::str::contains("a: failed"));
 }
 
 #[test]
-fn without_a_file_clone_is_forwarded_to_git() {
+fn without_a_file_clone_is_an_error() {
     let fx = Fixture::new();
-    let remote = fx.remote("a");
-    fx.cmd(&["clone", "-q", remote.to_str().unwrap(), "copy"])
+    fx.cmd(&["--clone"])
         .assert()
-        .success();
-    assert!(fx.work.join("copy").join(".git").is_dir());
+        .code(2)
+        .stderr(predicate::str::contains("no .git-multi-repo file"));
+}
+
+#[test]
+fn clone_takes_no_extra_arguments() {
+    let fx = Fixture::new();
+    fx.cmd(&["--clone", "--depth", "1"]).assert().code(2);
 }
 
 #[test]
@@ -106,7 +111,7 @@ fn rejects_a_repository_name_that_escapes_the_work_directory() {
             fx.remote_path("x").display()
         ),
     );
-    fx.cmd(&["clone"])
+    fx.cmd(&["--clone"])
         .assert()
         .code(2)
         .stderr(predicate::str::contains(
@@ -126,7 +131,7 @@ fn a_url_starting_with_a_dash_is_not_treated_as_an_option() {
             marker.display()
         ),
     );
-    fx.cmd(&["clone"]).assert().code(1);
+    fx.cmd(&["--clone"]).assert().code(1);
     assert!(!marker.exists());
     assert!(!fx.work.join("PWNED").exists());
 }
@@ -142,7 +147,7 @@ fn a_pinned_commit_starting_with_a_dash_is_not_treated_as_an_option() {
             fx.remote_path("a").display()
         ),
     );
-    fx.cmd(&["clone"])
+    fx.cmd(&["--clone"])
         .assert()
         .code(1)
         .stdout(predicate::str::contains("a: failed"));

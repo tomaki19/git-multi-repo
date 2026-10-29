@@ -18,7 +18,7 @@ use clap::{ArgGroup, Parser};
     about = "Apply git commands and tasks to multiple git repositories",
     group(ArgGroup::new("action")
         .required(true)
-        .args(["persist", "pin", "remove", "unpin", "tasks", "command"]))
+        .args(["clone", "reset", "persist", "pin", "remove", "unpin", "tasks", "command"]))
 )]
 pub struct Cli {
     /// Omit repositories whose directory name fully matches REGEX
@@ -32,6 +32,14 @@ pub struct Cli {
     /// Number of parallel workers (default: number of CPUs); used with --parallel
     #[arg(long, value_name = "N", conflicts_with_all = ["persist", "pin", "remove", "unpin"])]
     pub jobs: Option<NonZeroUsize>,
+
+    /// Clone the repositories listed in .git-multi-repo
+    #[arg(long, conflicts_with_all = ["persist", "pin", "remove", "unpin"])]
+    pub clone: bool,
+
+    /// Hard-reset the repositories to the commit or branch in .git-multi-repo
+    #[arg(long, conflicts_with_all = ["persist", "pin", "remove", "unpin"])]
+    pub reset: bool,
 
     /// Write .git-multi-repo with url and branch of all (or matching) repositories
     #[arg(long, value_name = "REGEX", num_args = 0..=1)]
@@ -67,8 +75,8 @@ pub struct Cli {
 pub enum Action {
     /// Run `git <args…>` in every selected repository.
     Git(Vec<String>),
-    /// `clone`, holding the arguments that followed `clone`.
-    Clone(Vec<String>),
+    Clone,
+    Reset,
     Tasks(PathBuf),
     Persist(Option<String>),
     Pin(Option<String>),
@@ -78,6 +86,12 @@ pub enum Action {
 
 impl Cli {
     pub fn action(&self) -> Action {
+        if self.clone {
+            return Action::Clone;
+        }
+        if self.reset {
+            return Action::Reset;
+        }
         if let Some(filter) = &self.persist {
             return Action::Persist(filter.clone());
         }
@@ -93,10 +107,7 @@ impl Cli {
         if let Some(path) = &self.tasks {
             return Action::Tasks(path.clone());
         }
-        match self.command.split_first() {
-            Some((first, rest)) if first == "clone" => Action::Clone(rest.to_vec()),
-            _ => Action::Git(self.command.clone()),
-        }
+        Action::Git(self.command.clone())
     }
 
     /// `None` runs repositories one after another with live output;
@@ -151,9 +162,20 @@ mod tests {
     }
 
     #[test]
-    fn clone_is_recognised() {
-        let cli = parse(&["clone", "--depth", "1"]).unwrap();
-        assert_eq!(cli.action(), Action::Clone(strings(&["--depth", "1"])));
+    fn clone_and_reset_are_recognised() {
+        assert_eq!(parse(&["--clone"]).unwrap().action(), Action::Clone);
+        assert_eq!(
+            parse(&["--omit", "x", "--reset"]).unwrap().action(),
+            Action::Reset
+        );
+    }
+
+    #[test]
+    fn clone_and_reset_take_no_arguments() {
+        assert!(parse(&["--clone", "--depth", "1"]).is_err());
+        assert!(parse(&["--reset", "--hard"]).is_err());
+        assert!(parse(&["--clone", "--reset"]).is_err());
+        assert!(parse(&["--reset", "--pin"]).is_err());
     }
 
     #[test]

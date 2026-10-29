@@ -35,7 +35,8 @@ non-option word is passed to git unchanged.
 | Run a git command everywhere | `git multi-repo fetch --prune` |
 | Skip some repos | `git multi-repo --omit 'legacy-.*' status --short` |
 | Run concurrently | `git multi-repo --parallel [--jobs 4] pull --ff-only` |
-| Clone everything in the manifest | `git multi-repo clone` |
+| Clone everything in the manifest | `git multi-repo --clone` |
+| Hard-reset to manifest commits/branches | `git multi-repo --reset` |
 | Run a tasks file in every repo | `git multi-repo --tasks tasks.json` |
 | Write manifest (url + branch) | `git multi-repo --persist ['<regex>']` |
 | Write manifest with commits pinned | `git multi-repo --pin ['<regex>']` |
@@ -43,7 +44,7 @@ non-option word is passed to git unchanged.
 | Remove manifest entries | `git multi-repo --remove ['<regex>']` |
 
 `--omit` cannot be combined with `--remove` or `--unpin`; `--parallel` and
-`--jobs` only apply to git commands, `clone` and `--tasks`.
+`--jobs` only apply to git commands, `--clone`, `--reset` and `--tasks`.
 
 ### Running as an agent
 
@@ -93,11 +94,13 @@ leading `-`).
   remote are skipped with a warning, since a manifest entry needs a `url`.
 - `--remove` deletes entries (and the file once it is empty); it never touches
   repositories on disk.
-- `clone` with a manifest clones every entry on its `branch`, checks out
-  pinned entries at their `commit` (detached HEAD) and skips directories that
-  already exist. Extra arguments go to every `git clone`, for example
-  `git multi-repo clone --depth 1`. Without a manifest, `git multi-repo clone
-  <args>` is just `git clone <args>`.
+- `--clone` needs a manifest. It clones every entry on its `branch`, checks
+  out pinned entries at their `commit` (detached HEAD) and skips directories
+  that already exist. It takes no extra arguments.
+- `--reset` needs a manifest and runs `git reset --hard` in every entry: to its
+  pinned `commit`, else to the head of its `branch`. This **discards local
+  changes**, so ask before running it. It takes no extra arguments; for an
+  ordinary reset use `git multi-repo reset <args>`.
 
 ## Tasks files
 
@@ -127,7 +130,7 @@ they choose, not inside a repository, and give each task a short `task` name.
 
 - A tasks file runs arbitrary shell code, and variable values are inserted
   **without escaping**, so a manifest or repository from someone else can
-  inject commands through a branch name or URL. Before running `clone` or
+  inject commands through a branch name or URL. Before running `--clone` or
   `--tasks` with a `.git-multi-repo` or tasks file you did not write, read it
   and show the user anything unexpected (unfamiliar URLs, odd names, commands
   that delete or upload things).

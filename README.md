@@ -10,7 +10,8 @@ used, in file order. If the file exists but is invalid, nothing runs.
 ## Usage
 
     git multi-repo [--omit <regex>] [--parallel] [--jobs <n>] <git-command> [args...]
-    git multi-repo [--omit <regex>] [--parallel] [--jobs <n>] clone [args...]
+    git multi-repo [--omit <regex>] [--parallel] [--jobs <n>] --clone
+    git multi-repo [--omit <regex>] [--parallel] [--jobs <n>] --reset
     git multi-repo [--omit <regex>] [--parallel] [--jobs <n>] --tasks <file.json>
     git multi-repo [--omit <regex>] --persist [<regex>]
     git multi-repo [--omit <regex>] --pin [<regex>]
@@ -44,7 +45,7 @@ commands cannot read from the terminal.
 
 Repository names must be plain directory names (no path separators, `.` or
 `..`, no leading `-`). Review a `.git-multi-repo` file from someone else
-before running `clone` or `--tasks` with it.
+before running `--clone` or `--tasks` with it.
 
 - `--persist [<regex>]` writes the file with `url` and `branch` of all (or
   matching) repositories. The file is **overwritten**; existing pins are dropped.
@@ -55,12 +56,21 @@ before running `clone` or `--tasks` with it.
 
 ### Cloning
 
-    git multi-repo clone
+    git multi-repo --clone
 
-With a `.git-multi-repo` file, every entry is cloned (on its `branch`) and
+Needs a `.git-multi-repo` file. Every entry is cloned (on its `branch`) and
 pinned entries are checked out at their `commit` (detached HEAD). Existing
-directories are skipped. Extra arguments are passed to every `git clone`.
-Without a file, `git multi-repo clone <args>` is a plain `git clone <args>`.
+directories are skipped. `--clone` takes no further arguments.
+
+### Resetting
+
+    git multi-repo --reset
+
+Needs a `.git-multi-repo` file. Every entry is reset with `git reset --hard`:
+to its `commit` if it has one, otherwise to the head of its `branch`
+(`git reset --hard <branch>`). Entries with neither get a plain
+`git reset --hard`. Local changes are discarded. `--reset` takes no further
+arguments; use `git multi-repo reset <args>` for an ordinary `git reset`.
 
 ### Tasks
 
@@ -168,7 +178,7 @@ installer `dist/git-multi-repo-<version>-<target>.msi` (plus `.sha256`), which
 installs the binary to `C:\Program Files\git-multi-repo` and adds that
 directory to the system `PATH`:
 
-    msiexec /i dist\git-multi-repo-0.9.1-x86_64-pc-windows-msvc.msi
+    msiexec /i dist\git-multi-repo-0.9.2-x86_64-pc-windows-msvc.msi
 
 The GitHub Actions workflow `.github/workflows/build.yml` runs the same
 checks and builds archives for Linux (`.tar.gz`, `.deb`) and Windows (`.zip`, `.msi`) on every

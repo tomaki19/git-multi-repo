@@ -7,9 +7,8 @@
 //! runs).
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
 use regex::Regex;
 
 use crate::cli::{Action, Cli};
@@ -25,7 +24,8 @@ pub fn run(cli: &Cli, root: &Path) -> Result<bool> {
     let parallelism = cli.parallelism();
     match cli.action() {
         Action::Git(args) => git_command(root, &args, omit, parallelism),
-        Action::Clone(args) => clone(root, &args, omit, parallelism),
+        Action::Clone => clone(root, omit, parallelism),
+        Action::Reset => reset(root, omit, parallelism),
         Action::Persist(filter) => write_config(root, filter.as_deref(), omit, false),
         Action::Pin(filter) => write_config(root, filter.as_deref(), omit, true),
         Action::Remove(filter) => remove(root, filter.as_deref()),
@@ -74,33 +74,19 @@ fn git_command(
     Ok(execute(jobs, parallelism, false))
 }
 
-/// With a file, clones every selected entry (and checks out pinned commits);
-/// without one, behaves exactly like a single `git clone`.
-fn clone(
-    root: &Path,
-    args: &[String],
-    omit: Option<&Regex>,
-    parallelism: Option<usize>,
-) -> Result<bool> {
-    let Some(config) = Config::load(root)? else {
-        let status = Command::new("git")
-            .arg("clone")
-            .args(args)
-            .current_dir(root)
-            .status()
-            .context("cannot run git")?;
-        return Ok(status.success());
-    };
+/// Clones every selected entry (and checks out pinned commits).
+fn clone(root: &Path, omit: Option<&Regex>, parallelism: Option<usize>) -> Result<bool> {
+    let config = load_existing(root)?;
     let repos = select::select(root, Some(&config), omit, false)?;
     warn_if_empty(&repos);
     let jobs = repos
         .into_iter()
-        .map(|repo| clone_job(root, repo, args))
+        .map(|repo| clone_job(root, repo))
         .collect();
     Ok(execute(jobs, parallelism, false))
 }
 
-fn clone_job(root: &Path, repo: Repo, args: &[String]) -> Job {
+fn clone_job(root: &Path, repo: Repo) -> Job {
     if root.join(&repo.name).exists() {
         return Job {
             name: repo.name,
@@ -113,7 +99,6 @@ fn clone_job(root: &Path, repo: Repo, args: &[String]) -> Job {
     if let Some(branch) = &entry.branch {
         argv.extend(["--branch".to_owned(), branch.clone()]);
     }
-    argv.extend(args.iter().cloned());
     argv.extend(["--".to_owned(), entry.url.clone(), repo.name.clone()]);
     let mut steps = vec![Step {
         label: "clone".into(),
@@ -142,6 +127,37 @@ fn clone_job(root: &Path, repo: Repo, args: &[String]) -> Job {
     Job {
         name: repo.name,
         steps,
+        skip: None,
+    }
+}
+
+/// Hard-resets every selected repository to its pinned commit, or else to
+/// the head of its branch.
+fn reset(root: &Path, omit: Option<&Regex>, parallelism: Option<usize>) -> Result<bool> {
+    let config = load_existing(root)?;
+    let repos = select::select(root, Some(&config), omit, true)?;
+    warn_if_empty(&repos);
+    let jobs = repos
+        .into_iter()
+        .map(|repo| reset_job(root, repo))
+        .collect();
+    Ok(execute(jobs, parallelism, false))
+}
+
+fn reset_job(root: &Path, repo: Repo) -> Job {
+    let entry = repo.entry.unwrap_or_default();
+    let mut argv: Vec<String> = ["git", "reset", "--hard"].map(String::from).to_vec();
+    if let Some(target) = entry.commit.or(entry.branch) {
+        argv.extend(["--end-of-options".to_owned(), target]);
+    }
+    Job {
+        steps: vec![Step {
+            label: "reset".into(),
+            argv,
+            cwd: root.join(&repo.name),
+            depends_on: None,
+        }],
+        name: repo.name,
         skip: None,
     }
 }
