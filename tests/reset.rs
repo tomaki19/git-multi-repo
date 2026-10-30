@@ -68,3 +68,42 @@ fn reset_takes_no_extra_arguments() {
     let fx = Fixture::new();
     fx.cmd(&["--reset", "--soft", "HEAD~1"]).assert().code(2);
 }
+
+#[test]
+fn resets_to_the_branch_overriding_the_pinned_commit() {
+    let fx = Fixture::new();
+    let a = fx.repo("a");
+    let pinned = git(&a, &["rev-parse", "HEAD"]);
+    git(&a, &["branch", "other"]);
+    git(&a, &["checkout", "-q", "other"]);
+    git(&a, &["commit", "-q", "--allow-empty", "-m", "on other"]);
+    let other_head = git(&a, &["rev-parse", "HEAD"]);
+    fx.write(
+        ".git-multi-repo",
+        &format!(
+            "[a]\nurl = '{}'\nbranch = \"other\"\ncommit = \"{pinned}\"\n",
+            fx.remote_path("a").display()
+        ),
+    );
+    fx.cmd(&["--reset", "--branch", "other"]).assert().success();
+    assert_eq!(git(&a, &["rev-parse", "HEAD"]), other_head);
+}
+
+#[test]
+fn resets_to_the_branch_given_with_the_branch_option() {
+    let fx = Fixture::new();
+    let a = fx.repo("a");
+    let head = git(&a, &["rev-parse", "HEAD"]);
+    git(&a, &["branch", "other"]);
+    git(&a, &["checkout", "-q", "other"]);
+    fx.write(
+        ".git-multi-repo",
+        &format!(
+            "[a]\nurl = '{}'\nbranch = \"other\"\n",
+            fx.remote_path("a").display()
+        ),
+    );
+    dirty(&a);
+    fx.cmd(&["--reset", "--branch", "main"]).assert().success();
+    assert_eq!(git(&a, &["rev-parse", "HEAD"]), head);
+}

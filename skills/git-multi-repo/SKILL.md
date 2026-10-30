@@ -36,7 +36,10 @@ non-option word is passed to git unchanged.
 | Skip some repos | `git multi-repo --omit 'legacy-.*' status --short` |
 | Run concurrently | `git multi-repo --parallel [--jobs 4] pull --ff-only` |
 | Clone everything in the manifest | `git multi-repo --clone` |
+| Clone onto a specific branch | `git multi-repo --clone --branch <name>` |
+| Clone from a given manifest file | `git multi-repo --clone --from <file>` |
 | Hard-reset to manifest commits/branches | `git multi-repo --reset` |
+| Hard-reset to a specific branch | `git multi-repo --reset --branch <name>` |
 | Run a tasks file in every repo | `git multi-repo --tasks tasks.json` |
 | Write manifest (url + branch) | `git multi-repo --persist ['<regex>']` |
 | Write manifest with commits pinned | `git multi-repo --pin ['<regex>']` |
@@ -45,6 +48,8 @@ non-option word is passed to git unchanged.
 
 `--omit` cannot be combined with `--remove` or `--unpin`; `--parallel` and
 `--jobs` only apply to git commands, `--clone`, `--reset` and `--tasks`.
+`--branch` is only valid with `--clone` or `--reset`; `--from` is only valid
+with `--clone`.
 
 ### Running as an agent
 
@@ -72,6 +77,11 @@ non-option word is passed to git unchanged.
 - Current branch everywhere: `git multi-repo --parallel branch --show-current`.
 - Safe update: `git multi-repo --parallel pull --ff-only` (never creates merge
   commits; repos that cannot fast-forward fail and are reported).
+- New release workspace from a previous one:
+  `git multi-repo --clone --from <previous-workspace> --branch <release-branch>`
+  (the first part is a `.git-multi-repo` file from an earlier release, the
+  second the branch of the new release; `--branch` overrides each entry's
+  branch and drops its pinned commit).
 
 ## The `.git-multi-repo` manifest
 
@@ -97,10 +107,16 @@ leading `-`).
 - `--clone` needs a manifest. It clones every entry on its `branch`, checks
   out pinned entries at their `commit` (detached HEAD) and skips directories
   that already exist. It takes no extra arguments.
+  - With `--branch <name>`: clones every entry on that branch instead of the
+    entry's branch and ignores the entry's pinned commit.
+  - With `--from <file>`: reads the entries from the given `.git-multi-repo`
+    file instead of the one in the working directory.
 - `--reset` needs a manifest and runs `git reset --hard` in every entry: to its
   pinned `commit`, else to the head of its `branch`. This **discards local
   changes**, so ask before running it. It takes no extra arguments; for an
   ordinary reset use `git multi-repo reset <args>`.
+  - With `--branch <name>`: resets every entry to that branch instead of the
+    entry's commit or branch.
 
 ## Tasks files
 

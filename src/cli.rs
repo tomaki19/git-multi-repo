@@ -41,6 +41,14 @@ pub struct Cli {
     #[arg(long, conflicts_with_all = ["persist", "pin", "remove", "unpin"])]
     pub reset: bool,
 
+    /// Branch to clone or reset to instead of the branch and commit in .git-multi-repo
+    #[arg(long, value_name = "NAME", conflicts_with_all = ["persist", "pin", "remove", "unpin", "tasks", "command"])]
+    pub branch: Option<String>,
+
+    /// Clone the repositories listed in the given .git-multi-repo file
+    #[arg(long, value_name = "FILE", conflicts_with_all = ["reset", "persist", "pin", "remove", "unpin", "tasks", "command"])]
+    pub from: Option<PathBuf>,
+
     /// Write .git-multi-repo with url and branch of all (or matching) repositories
     #[arg(long, value_name = "REGEX", num_args = 0..=1)]
     pub persist: Option<Option<String>>,
@@ -176,6 +184,37 @@ mod tests {
         assert!(parse(&["--reset", "--hard"]).is_err());
         assert!(parse(&["--clone", "--reset"]).is_err());
         assert!(parse(&["--reset", "--pin"]).is_err());
+    }
+
+    #[test]
+    fn clone_and_reset_accept_a_branch() {
+        let cli = parse(&["--clone", "--branch", "main"]).unwrap();
+        assert_eq!(cli.action(), Action::Clone);
+        assert_eq!(cli.branch.as_deref(), Some("main"));
+        let cli = parse(&["--reset", "--branch", "develop"]).unwrap();
+        assert_eq!(cli.action(), Action::Reset);
+        assert_eq!(cli.branch.as_deref(), Some("develop"));
+    }
+
+    #[test]
+    fn branch_is_not_valid_for_other_actions() {
+        assert!(parse(&["--branch", "main"]).is_err());
+        assert!(parse(&["--branch", "main", "--persist"]).is_err());
+        assert!(parse(&["--branch", "main", "--tasks", "t.json"]).is_err());
+        assert!(parse(&["--branch", "main", "fetch"]).is_err());
+    }
+
+    #[test]
+    fn clone_from_takes_a_git_multi_repo_file() {
+        let cli = parse(&["--clone", "--from", "release"]).unwrap();
+        assert_eq!(cli.action(), Action::Clone);
+        assert_eq!(cli.from.as_deref(), Some(std::path::Path::new("release")));
+    }
+
+    #[test]
+    fn from_is_only_valid_for_clone() {
+        assert!(parse(&["--from", "release", "--reset"]).is_err());
+        assert!(parse(&["--from", "release", "--persist"]).is_err());
     }
 
     #[test]

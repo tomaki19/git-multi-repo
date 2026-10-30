@@ -24,8 +24,14 @@ pub fn run(cli: &Cli, root: &Path) -> Result<bool> {
     let parallelism = cli.parallelism();
     match cli.action() {
         Action::Git(args) => git_command(root, &args, omit, parallelism),
-        Action::Clone => clone(root, omit, parallelism),
-        Action::Reset => reset(root, omit, parallelism),
+        Action::Clone => clone(
+            root,
+            cli.from.as_deref(),
+            cli.branch.as_deref(),
+            omit,
+            parallelism,
+        ),
+        Action::Reset => reset(root, cli.branch.as_deref(), omit, parallelism),
         Action::Persist(filter) => write_config(root, filter.as_deref(), omit, false),
         Action::Pin(filter) => write_config(root, filter.as_deref(), omit, true),
         Action::Remove(filter) => remove(root, filter.as_deref()),
@@ -74,19 +80,33 @@ fn git_command(
     Ok(execute(jobs, parallelism, false))
 }
 
-/// Clones every selected entry (and checks out pinned commits).
-fn clone(root: &Path, omit: Option<&Regex>, parallelism: Option<usize>) -> Result<bool> {
-    let config = load_existing(root)?;
+/// Clones every selected entry (and checks out pinned commits). `from` names
+/// a `.git-multi-repo` file to read the entries from, `branch` overrides the
+/// branch of every entry (and drops its pinned commit).
+fn clone(
+    root: &Path,
+    from: Option<&Path>,
+    branch: Option<&str>,
+    omit: Option<&Regex>,
+    parallelism: Option<usize>,
+) -> Result<bool> {
+    let config = match from {
+        Some(path) => match Config::load_file(path)? {
+            Some(config) => config,
+            None => bail!("no .git-multi-repo file at {}", path.display()),
+        },
+        None => load_existing(root)?,
+    };
     let repos = select::select(root, Some(&config), omit, false)?;
     warn_if_empty(&repos);
     let jobs = repos
         .into_iter()
-        .map(|repo| clone_job(root, repo))
+        .map(|repo| clone_job(root, repo, branch))
         .collect();
     Ok(execute(jobs, parallelism, false))
 }
 
-fn clone_job(root: &Path, repo: Repo) -> Job {
+fn clone_job(root: &Path, repo: Repo, branch: Option<&str>) -> Job {
     if root.join(&repo.name).exists() {
         return Job {
             name: repo.name,
@@ -95,8 +115,12 @@ fn clone_job(root: &Path, repo: Repo) -> Job {
         };
     }
     let entry = repo.entry.unwrap_or_default();
+    let override_branch = branch;
+    let branch = override_branch
+        .map(str::to_owned)
+        .or_else(|| entry.branch.clone());
     let mut argv = vec!["git".to_owned(), "clone".to_owned()];
-    if let Some(branch) = &entry.branch {
+    if let Some(branch) = &branch {
         argv.extend(["--branch".to_owned(), branch.clone()]);
     }
     argv.extend(["--".to_owned(), entry.url.clone(), repo.name.clone()]);
@@ -106,7 +130,9 @@ fn clone_job(root: &Path, repo: Repo) -> Job {
         cwd: root.to_path_buf(),
         depends_on: None,
     }];
-    if let Some(commit) = &entry.commit {
+    if override_branch.is_none()
+        && let Some(commit) = &entry.commit
+    {
         steps.push(Step {
             label: "checkout".into(),
             argv: [
@@ -132,23 +158,32 @@ fn clone_job(root: &Path, repo: Repo) -> Job {
 }
 
 /// Hard-resets every selected repository to its pinned commit, or else to
-/// the head of its branch.
-fn reset(root: &Path, omit: Option<&Regex>, parallelism: Option<usize>) -> Result<bool> {
+/// the head of its branch. `branch` overrides the commit or branch of every
+/// entry.
+fn reset(
+    root: &Path,
+    branch: Option<&str>,
+    omit: Option<&Regex>,
+    parallelism: Option<usize>,
+) -> Result<bool> {
     let config = load_existing(root)?;
     let repos = select::select(root, Some(&config), omit, true)?;
     warn_if_empty(&repos);
     let jobs = repos
         .into_iter()
-        .map(|repo| reset_job(root, repo))
+        .map(|repo| reset_job(root, repo, branch))
         .collect();
     Ok(execute(jobs, parallelism, false))
 }
 
-fn reset_job(root: &Path, repo: Repo) -> Job {
+fn reset_job(root: &Path, repo: Repo, branch: Option<&str>) -> Job {
     let entry = repo.entry.unwrap_or_default();
     let mut argv: Vec<String> = ["git", "reset", "--hard"].map(String::from).to_vec();
-    if let Some(target) = entry.commit.or(entry.branch) {
-        argv.extend(["--end-of-options".to_owned(), target]);
+    let target = branch
+        .map(str::to_owned)
+        .or_else(|| entry.commit.or(entry.branch));
+    if let Some(target) = &target {
+        argv.extend(["--end-of-options".to_owned(), target.clone()]);
     }
     Job {
         steps: vec![Step {

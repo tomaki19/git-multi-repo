@@ -152,3 +152,77 @@ fn a_pinned_commit_starting_with_a_dash_is_not_treated_as_an_option() {
         .code(1)
         .stdout(predicate::str::contains("a: failed"));
 }
+
+#[test]
+fn clone_uses_the_branch_overriding_the_manifest_entry() {
+    let fx = Fixture::new();
+    let a = fx.repo("a");
+    git(&a, &["branch", "feature"]);
+    git(&a, &["push", "-q", "origin", "feature"]);
+    let pinned = git(&a, &["rev-parse", "HEAD"]);
+    fx.write(
+        ".git-multi-repo",
+        &format!(
+            "[a]\nurl = '{}'\nbranch = \"main\"\ncommit = \"{pinned}\"\n",
+            fx.remote_path("a").display()
+        ),
+    );
+    fs::remove_dir_all(&a).unwrap();
+
+    fx.cmd(&["--clone", "--branch", "feature"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("a: ok\n"));
+
+    assert_eq!(git(&a, &["symbolic-ref", "--short", "HEAD"]), "feature");
+}
+
+#[test]
+fn clone_from_a_git_multi_repo_file() {
+    let fx = Fixture::new();
+    fx.remote("a");
+    fx.write(
+        "release",
+        &format!(
+            "[a]\nurl = '{}'\nbranch = \"main\"\n",
+            fx.remote_path("a").display()
+        ),
+    );
+    fx.cmd(&["--clone", "--from", "release"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("a: ok\n"));
+    assert!(fx.work.join("a").join(".git").is_dir());
+}
+
+#[test]
+fn clone_from_a_missing_file_is_an_error() {
+    let fx = Fixture::new();
+    fx.cmd(&["--clone", "--from", "missing"])
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("no .git-multi-repo file"));
+}
+
+#[test]
+fn clone_from_a_git_multi_repo_file_with_a_branch() {
+    let fx = Fixture::new();
+    let a = fx.repo("a");
+    git(&a, &["branch", "feature"]);
+    git(&a, &["push", "-q", "origin", "feature"]);
+    let pinned = git(&a, &["rev-parse", "HEAD"]);
+    fx.write(
+        "release",
+        &format!(
+            "[a]\nurl = '{}'\nbranch = \"main\"\ncommit = \"{pinned}\"\n",
+            fx.remote_path("a").display()
+        ),
+    );
+    fs::remove_dir_all(&a).unwrap();
+
+    fx.cmd(&["--clone", "--from", "release", "--branch", "feature"])
+        .assert()
+        .success();
+
+    assert_eq!(git(&a, &["symbolic-ref", "--short", "HEAD"]), "feature");
+}

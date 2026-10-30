@@ -10,8 +10,8 @@ used, in file order. If the file exists but is invalid, nothing runs.
 ## Usage
 
     git multi-repo [--omit <regex>] [--parallel] [--jobs <n>] <git-command> [args...]
-    git multi-repo [--omit <regex>] [--parallel] [--jobs <n>] --clone
-    git multi-repo [--omit <regex>] [--parallel] [--jobs <n>] --reset
+    git multi-repo [--omit <regex>] [--parallel] [--jobs <n>] --clone [--branch <name>] [--from <file>]
+    git multi-repo [--omit <regex>] [--parallel] [--jobs <n>] --reset [--branch <name>]
     git multi-repo [--omit <regex>] [--parallel] [--jobs <n>] --tasks <file.json>
     git multi-repo [--omit <regex>] --persist [<regex>]
     git multi-repo [--omit <regex>] --pin [<regex>]
@@ -60,7 +60,18 @@ before running `--clone` or `--tasks` with it.
 
 Needs a `.git-multi-repo` file. Every entry is cloned (on its `branch`) and
 pinned entries are checked out at their `commit` (detached HEAD). Existing
-directories are skipped. `--clone` takes no further arguments.
+directories are skipped.
+
+    git multi-repo --clone [--branch <name>]
+
+Clones every entry on the given branch instead of the entry's branch and
+ignores the entry's pinned commit.
+
+    git multi-repo --clone [--from <file>]
+
+Clones the repositories listed in the given `.git-multi-repo` file instead of
+the one in the working directory — for example one written for a previous
+release workspace.
 
 ### Resetting
 
@@ -70,7 +81,22 @@ Needs a `.git-multi-repo` file. Every entry is reset with `git reset --hard`:
 to its `commit` if it has one, otherwise to the head of its `branch`
 (`git reset --hard <branch>`). Entries with neither get a plain
 `git reset --hard`. Local changes are discarded. `--reset` takes no further
-arguments; use `git multi-repo reset <args>` for an ordinary `git reset`.
+arguments other than `--branch`; use `git multi-repo reset <args>` for an
+ordinary `git reset`.
+
+    git multi-repo --reset [--branch <name>]
+
+Resets every entry to the given branch instead of the entry's commit or
+branch.
+
+### Creating a new release workspace
+
+To start the next release from a previous release workspace:
+
+    git multi-repo --clone --from <previous-workspace-file> --branch <release-branch>
+
+`--from` names a previous `.git-multi-repo` file, `--branch` overrides the
+branch of every entry (and drops its pinned commit).
 
 ### Tasks
 

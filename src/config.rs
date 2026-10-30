@@ -91,6 +91,21 @@ impl Config {
             .with_context(|| format!("invalid {FILE_NAME}"))
     }
 
+    /// Returns `Ok(None)` when the file does not exist, and an error when it
+    /// exists but is invalid. Unlike [`Config::load`] the file name is not
+    /// fixed, so this reads an arbitrary `.git-multi-repo` file, for example
+    /// one given with `--from`.
+    pub fn load_file(path: &Path) -> Result<Option<Config>> {
+        if !path.exists() {
+            return Ok(None);
+        }
+        let text =
+            fs::read_to_string(path).with_context(|| format!("cannot read {}", path.display()))?;
+        Config::parse(&text)
+            .map(Some)
+            .with_context(|| format!("invalid {}", path.display()))
+    }
+
     /// Writes to a temporary file next to the target and renames it, so an
     /// interrupted write never leaves a truncated file behind.
     pub fn save(&self, dir: &Path) -> Result<()> {
